@@ -8,7 +8,7 @@ window.allPairs = [];
 async function init() {
     loadMarketData();
     // Default to Dashboard
-    switchTab('dashboard');
+    window.switchTab('dashboard');
     
     // Polling
     setInterval(loadDashboardData, 2000); 
@@ -147,8 +147,8 @@ function updateActiveBotsList(bots) {
                 <div>Status: <span style="color:#ccc;">${bot.status}</span></div>
             </div>
             <div class="op-buttons">
-                <button class="btn-panic" onclick="stopBot('${bot.symbol}', 'panic')">PANIC SELL</button>
-                <button class="btn-stop" onclick="stopBot('${bot.symbol}', 'stop')">STOP</button>
+                <button class="btn-panic" onclick="window.stopBot('${bot.symbol}', 'panic')">PANIC SELL</button>
+                <button class="btn-stop" onclick="window.stopBot('${bot.symbol}', 'stop')">STOP</button>
             </div>
         </div>
         `;
@@ -172,7 +172,7 @@ if (searchInput) {
         const matches = window.allPairs.filter(p => p.symbol.includes(val)).slice(0, 5);
         if (matches.length > 0) {
             results.innerHTML = matches.map(m => `
-                <div onclick="selectPair('${m.symbol}')" style="padding:12px; border-bottom:1px solid rgba(255,255,255,0.1); color:#fff; cursor:pointer;">
+                <div onclick="window.selectPair('${m.symbol}')" style="padding:12px; border-bottom:1px solid rgba(255,255,255,0.1); color:#fff; cursor:pointer;">
                     ${m.symbol}
                 </div>
             `).join('');
@@ -196,7 +196,7 @@ window.selectPair = function(symbol) {
     if(results) results.style.display = 'none';
 }
 
-window.launchFactoryBot = async function() {
+window.startVortexStrategy = async function() {
     const input = document.getElementById('factorySearch');
     const symbol = input ? input.value : '';
     
@@ -248,6 +248,9 @@ window.launchFactoryBot = async function() {
         showToast('Connection Error', 'error');
     }
 }
+
+// Backward compatibility alias just in case
+window.launchFactoryBot = window.startVortexStrategy;
 
 window.stopBot = async function(symbol, action) {
     if (!confirm(`Confirm ${action.toUpperCase()} for ${symbol}?`)) return;

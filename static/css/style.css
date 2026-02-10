@@ -368,10 +368,9 @@ body {
 }
 
 /* Desktop Hiding */
-@media (min-width: 769px) {
+/* @media (min-width: 769px) {
     .bottom-nav { display: none; }
-    /* Add basic desktop responsiveness here if needed, but focus is mobile */
-}
+} */
 
 /* Utilities */
 .hidden { display: none !important; }
