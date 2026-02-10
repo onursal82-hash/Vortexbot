@@ -1,0 +1,21 @@
+{
+  "name": "Vortex AI Trading Bot",
+  "short_name": "Vortex",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0d2b2d",
+  "theme_color": "#0d2b2d",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/static/assets/brand/vortex-ultra-final.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/static/assets/brand/vortex-ultra-final.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
