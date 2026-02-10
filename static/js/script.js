@@ -16,14 +16,25 @@ window.switchTab = function(tabName) {
     // Hide all views
     document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
     document.querySelectorAll('.nav-tab').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.bottom-nav-item').forEach(el => el.classList.remove('active'));
     
     // Show selected
-    document.getElementById(`view-${tabName}`).classList.add('active');
+    const view = document.getElementById(`view-${tabName}`);
+    if(view) view.classList.add('active');
     
-    // Update Tab UI
+    // Update Tab UI (Desktop)
     const tabs = document.querySelectorAll('.nav-tab');
-    if(tabName === 'dashboard') tabs[0].classList.add('active');
-    if(tabName === 'factory') tabs[1].classList.add('active');
+    if(tabs.length > 0) {
+        if(tabName === 'dashboard') tabs[0].classList.add('active');
+        if(tabName === 'factory') tabs[1].classList.add('active');
+    }
+    
+    // Update Tab UI (Mobile)
+    const mobTabs = document.querySelectorAll('.bottom-nav-item');
+    if(mobTabs.length > 0) {
+        if(tabName === 'dashboard') mobTabs[0].classList.add('active');
+        if(tabName === 'factory') mobTabs[1].classList.add('active');
+    }
 }
 
 // --- Data Fetching ---
@@ -73,7 +84,7 @@ if(searchInput) {
         const resultsBox = document.getElementById('searchResults');
         if(matches.length > 0) {
             resultsBox.innerHTML = matches.map(c => 
-                `<div class="search-item" onclick="selectFactoryPair('${c.symbol}')">${c.symbol}</div>`
+                `<div class="search-item" onclick="selectFactoryPair('${c.symbol}')" style="padding: 10px; border-bottom: 1px solid var(--border); cursor: pointer;">${c.symbol}</div>`
             ).join('');
             resultsBox.style.display = 'block';
         } else {
@@ -91,26 +102,35 @@ window.selectFactoryPair = function(symbol) {
     configPanel.style.display = 'block';
 }
 
+// Helper to safely get value
+function getVal(id, def = '') {
+    const el = document.getElementById(id);
+    return el ? el.value : def;
+}
+
 window.launchFactoryBot = async function() {
-    window.alert('Request Sent: Launching Bot...'); // DEBUG: Verify mobile click
-    const symbol = document.getElementById('factorySelectedDisplay').innerText;
-    if(symbol === '---') {
+    // window.alert('Request Sent: Launching Bot...'); // DEBUG
+    
+    const displayEl = document.getElementById('factorySelectedDisplay');
+    const symbol = displayEl ? displayEl.innerText : '---';
+    
+    if(!symbol || symbol === '---') {
         alert('Please select a symbol first!');
         return;
     }
 
     // Gather Full 3Commas Params from Left Panel
-    const base = parseFloat(document.getElementById('fBase').value);
-    const safety = parseFloat(document.getElementById('fSafety').value);
-    const maxSafety = parseInt(document.getElementById('fMaxSafety').value);
-    const volScale = parseFloat(document.getElementById('fVolScale').value);
-    const stepScale = parseFloat(document.getElementById('fStepScale').value);
-    const dev = parseFloat(document.getElementById('fDev').value);
-    const tp = parseFloat(document.getElementById('fTP').value);
+    const base = parseFloat(getVal('fBase', '20'));
+    const safety = parseFloat(getVal('fSafety', '40'));
+    const maxSafety = parseInt(getVal('fMaxSafety', '5'));
+    const volScale = parseFloat(getVal('fVolScale', '1.05'));
+    const stepScale = parseFloat(getVal('fStepScale', '1.0'));
+    const dev = parseFloat(getVal('fDev', '2.0'));
+    const tp = parseFloat(getVal('fTP', '1.5'));
     
-    const tpType = document.getElementById('fTPType').value;
-    const profitCurrency = document.getElementById('fProfitCurrency').value;
-    const stopAction = document.getElementById('fStopAction').value;
+    const tpType = getVal('fTPType', 'total_volume');
+    const profitCurrency = getVal('fProfitCurrency', 'quote');
+    const stopAction = getVal('fStopAction', 'close');
 
     const payload = {
         symbol: symbol,
@@ -186,55 +206,6 @@ window.stopBot = async function(symbol, action) {
     }
 }
 
-window.startVortexStrategy = async function() {
-    try {
-        const symbol = document.getElementById('factorySelectedDisplay').innerText;
-        if (!symbol || symbol === '---') {
-            showToast('Please search and select a trading pair first.', 'error');
-            return;
-        }
-
-        // 1. Strategic Transparency: Auto-fill Golden Parameters
-        document.getElementById('fBase').value = 20;
-        document.getElementById('fSafety').value = 40;
-        document.getElementById('fMaxSafety').value = 15;
-        document.getElementById('fVolScale').value = 1.05;
-        document.getElementById('fStepScale').value = 1.0;
-        document.getElementById('fDev').value = 2.0;
-        document.getElementById('fTP').value = 1.5;
-        
-        // Show the config panel so user sees the values
-        document.getElementById('factoryConfig').style.display = 'block';
-
-        const payload = { 
-            symbol: symbol,
-            side: 'buy',
-            amount: 20
-        };
-        console.log('Sending data:', payload);
-
-        const res = await fetch('/api/start_strategy', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' }, 
-            body: JSON.stringify(payload)
-        });
-        if (!res.ok) {
-            const errData = await res.json();
-            throw new Error(errData.message || `HTTP error! status: ${res.status}`);
-        }
-        const data = await res.json();
-        if(data.status === 'success') {
-            showToast('🚀 VORTEX STRATEGY ACTIVATED', 'success');
-            loadDashboardData();
-        } else {
-            showToast('Strategy Error: ' + data.message, 'error');
-        }
-    } catch(e) {
-        console.error('Vortex Strategy Error:', e);
-        showToast('Failed to connect to Strategy Engine: ' + e.message, 'error');
-    }
-}
-
 // --- Dashboard & Active Bots Sync ---
 async function loadDashboardData() {
     try {
@@ -302,13 +273,6 @@ async function loadDashboardData() {
         const reservedEl = document.getElementById('reservedBal');
         if(reservedEl) reservedEl.innerText = '$' + reserved.toLocaleString(undefined, {minimumFractionDigits: 2});
         
-        // Update Timestamp
-        const tsEl = document.getElementById('lastUpdateTs');
-        if(tsEl) {
-            const now = new Date();
-            tsEl.innerText = now.toLocaleTimeString();
-        }
-
         // Update Circular PnL
         const pnlCircle = document.getElementById('pnlCircle');
         const pnlText = document.getElementById('dashTotalPnl');

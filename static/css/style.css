@@ -270,7 +270,7 @@ input, select {
         letter-spacing: 1px;
     }
 
-    .brand-center div:nth-child(2), /* Hide "DCA TRADING BOT" subtitle on mobile if too long */
+    .desktop-subtitle, /* Hide "DCA TRADING BOT" subtitle on mobile */
     .market-ticker-container {
         display: none !important; 
     }
@@ -279,7 +279,7 @@ input, select {
     .main-container {
         padding: 10px !important;
         padding-top: 75px !important; 
-        padding-bottom: 120px !important; /* Increased padding for scroll */
+        padding-bottom: 160px !important; /* Increased padding for scroll */
         width: 100%;
     }
 

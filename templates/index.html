@@ -121,6 +121,14 @@
                             <div class="input-group"><label>Safety Order</label><input type="number" id="fSafety" value="150"></div>
                             <div class="input-group"><label>Max Safety</label><input type="number" id="fMaxSafety" value="5"></div>
                             <div class="input-group"><label>Take Profit %</label><input type="number" id="fTP" value="1.5" step="0.1"></div>
+                            
+                            <!-- Hidden Advanced Params (Required for JS) -->
+                            <input type="hidden" id="fVolScale" value="1.5">
+                            <input type="hidden" id="fStepScale" value="1.5">
+                            <input type="hidden" id="fDev" value="1.5">
+                            <select id="fTPType" style="display:none;"><option value="total_volume" selected>Total Volume</option></select>
+                            <select id="fProfitCurrency" style="display:none;"><option value="quote" selected>Quote</option></select>
+                            <select id="fStopAction" style="display:none;"><option value="close" selected>Close Deal</option></select>
                         </div>
                         <button class="btn-primary" onclick="launchFactoryBot()">LAUNCH BOT</button>
                     </div>
