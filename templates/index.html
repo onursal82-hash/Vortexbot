@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Vortex DCA</title>
-    <link rel="stylesheet" href="static/css/style.css">
+    <link rel="stylesheet" href="../static/css/style.css">
     <!-- Preload fonts if possible, or use system fonts fallback -->
 </head>
 <body>
@@ -12,8 +12,20 @@
     <!-- Header -->
     <header class="nav-header">
         <div class="brand-center">
-            <div class="logo-mark"></div>
-            <div class="vortex-title-gold">VORTEX</div>
+            <!-- Vortex AI Logo -->
+            <div class="logo-mark-header">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="12" cy="12" r="10" stroke="url(#paint0_linear)" stroke-width="2"/>
+                    <path d="M12 6V18M6 12H18" stroke="url(#paint0_linear)" stroke-width="2" stroke-linecap="round"/>
+                    <defs>
+                        <linearGradient id="paint0_linear" x1="2" y1="2" x2="22" y2="22" gradientUnits="userSpaceOnUse">
+                            <stop stop-color="#03DAC6"/>
+                            <stop offset="1" stop-color="#FFD700"/>
+                        </linearGradient>
+                    </defs>
+                </svg>
+            </div>
+            <div class="vortex-title-gold">VORTEX AI</div>
         </div>
     </header>
 
@@ -24,26 +36,41 @@
         <div id="view-dashboard" class="view-section">
             <div class="dashboard-layout">
                 
-                <!-- 1. Net PnL (Vertical Pill) -->
+                <!-- 1. Net PnL (Vertical Pill with Integrated Coins) -->
                 <div class="pnl-pill-card">
                     <div class="pnl-circle-glow">
                         <div class="pnl-value-main" id="dashTotalPnl">+$0.00</div>
                     </div>
                     <div class="pnl-label">NET PNL</div>
+                    
+                    <!-- Integrated Top Coins -->
+                    <div class="integrated-coins">
+                        <div class="coin-pill">
+                            <span class="coin-name">BTC</span>
+                            <span class="coin-price" id="price-BTC">--</span>
+                        </div>
+                        <div class="coin-pill">
+                            <span class="coin-name">ETH</span>
+                            <span class="coin-price" id="price-ETH">--</span>
+                        </div>
+                        <div class="coin-pill">
+                            <span class="coin-name">SOL</span>
+                            <span class="coin-price" id="price-SOL">--</span>
+                        </div>
+                        <div class="coin-pill">
+                            <span class="coin-name">XRP</span>
+                            <span class="coin-price" id="price-XRP">--</span>
+                        </div>
+                        <div class="coin-pill">
+                            <span class="coin-name">BNB</span>
+                            <span class="coin-price" id="price-BNB">--</span>
+                        </div>
+                    </div>
                 </div>
 
-                <!-- 2. Asset Cards (Stacked) -->
+                <!-- 2. Asset Cards (Remaining Assets) -->
                 <div id="assets-container">
-                    <!-- Populated by JS -->
-                    <!-- Example structure for reference:
-                    <div class="asset-item">
-                        <div>
-                            <div class="asset-symbol">SOL</div>
-                            <div class="asset-price">$83.56</div>
-                        </div>
-                        <div class="asset-change text-pink">-4.55%</div>
-                    </div>
-                    -->
+                    <!-- Populated by JS for other assets if needed -->
                 </div>
 
                 <!-- 3. Balance & Bots (Grid) -->
@@ -65,13 +92,19 @@
         <div id="view-factory" class="view-section hidden">
             
             <!-- Strategy Engine Card -->
-            <div class="card">
+            <div class="card strategy-card">
                 <div class="strategy-header">Strategy Engine</div>
                 
-                <button class="btn-start-dca" onclick="startVortexStrategy()">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
-                    Start Vortex DCA
-                </button>
+                <div class="action-buttons-grid">
+                    <button class="btn-start-dca" onclick="window.startVortexStrategy()">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+                        Start Vortex
+                    </button>
+                    <button class="btn-custom-bot" onclick="window.launchCustomBot()">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                        Custom Bot
+                    </button>
+                </div>
 
                 <div style="text-align: center; margin-top: 20px; color: #fff;">Select Market</div>
                 <input type="text" class="search-input" id="factorySearch" placeholder="Search (e.g. BTC)...">
@@ -87,36 +120,58 @@
                 <!-- Config Inputs -->
                 <div id="factoryConfig" style="margin-top: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
                     <div class="config-item">
-                        <label style="color: #8b9bb4; font-size: 0.8rem;">Base Order ($)</label>
-                        <input type="number" id="fBase" value="20" class="search-input" style="margin-top: 5px;">
+                        <label>Base Order ($)</label>
+                        <input type="number" id="fBase" value="20" class="search-input">
                     </div>
                     <div class="config-item">
-                        <label style="color: #8b9bb4; font-size: 0.8rem;">Safety Order ($)</label>
-                        <input type="number" id="fSafety" value="40" class="search-input" style="margin-top: 5px;">
+                        <label>Safety Order ($)</label>
+                        <input type="number" id="fSafety" value="40" class="search-input">
                     </div>
                     <div class="config-item">
-                        <label style="color: #8b9bb4; font-size: 0.8rem;">Max Safety</label>
-                        <input type="number" id="fMaxSafety" value="5" class="search-input" style="margin-top: 5px;">
+                        <label>Max Safety</label>
+                        <input type="number" id="fMaxSafety" value="5" class="search-input">
                     </div>
                     <div class="config-item">
-                        <label style="color: #8b9bb4; font-size: 0.8rem;">Vol Scale</label>
-                        <input type="number" step="0.01" id="fVolScale" value="1.05" class="search-input" style="margin-top: 5px;">
+                        <label>Vol Scale</label>
+                        <input type="number" step="0.01" id="fVolScale" value="1.05" class="search-input">
                     </div>
                     <div class="config-item">
-                        <label style="color: #8b9bb4; font-size: 0.8rem;">Step Scale</label>
-                        <input type="number" step="0.01" id="fStepScale" value="1.0" class="search-input" style="margin-top: 5px;">
+                        <label>Step Scale</label>
+                        <input type="number" step="0.01" id="fStepScale" value="1.0" class="search-input">
                     </div>
                     <div class="config-item">
-                        <label style="color: #8b9bb4; font-size: 0.8rem;">Deviation (%)</label>
-                        <input type="number" step="0.1" id="fDev" value="2.0" class="search-input" style="margin-top: 5px;">
+                        <label>Deviation (%)</label>
+                        <input type="number" step="0.1" id="fDev" value="2.0" class="search-input">
                     </div>
                     <div class="config-item" style="grid-column: span 2;">
-                        <label style="color: #8b9bb4; font-size: 0.8rem;">Take Profit (%)</label>
-                        <input type="number" step="0.1" id="fTP" value="1.5" class="search-input" style="margin-top: 5px;">
+                        <label>Take Profit (%)</label>
+                        <input type="number" step="0.1" id="fTP" value="1.5" class="search-input">
+                    </div>
+
+                    <!-- New Parameters -->
+                    <div class="config-item" style="grid-column: span 2;">
+                        <label>Profit Currency</label>
+                        <select id="fProfitCurrency" class="search-input">
+                            <option value="quote">USDT (Quote)</option>
+                            <option value="base">Crypto (Base)</option>
+                        </select>
+                    </div>
+                    <div class="config-item">
+                        <label>Mode</label>
+                        <select id="fContinuousMode" class="search-input">
+                            <option value="false">One-time</option>
+                            <option value="true">Loop</option>
+                        </select>
+                    </div>
+                    <div class="config-item">
+                        <label>Entry Type</label>
+                        <select id="fEntryType" class="search-input">
+                            <option value="asap">ASAP</option>
+                            <option value="close">Close Market</option>
+                        </select>
                     </div>
                     
                     <input type="hidden" id="fTPType" value="total_volume">
-                    <input type="hidden" id="fProfitCurrency" value="quote">
                     <input type="hidden" id="fStopAction" value="close">
                 </div>
             </div>
@@ -124,7 +179,7 @@
             <!-- Active Operations -->
             <div style="margin-top: 20px;">
                 <div style="color: #fff; text-transform: uppercase; font-weight: bold; margin-bottom: 10px;">Active Operations</div>
-                <div id="activeBotCards" style="display: flex; flex-direction: column; gap: 10px;">
+                <div id="activeBotCards" class="active-ops-container">
                     <!-- JS Populates -->
                 </div>
             </div>
@@ -135,11 +190,11 @@
 
     <!-- Bottom Navigation -->
     <div class="bottom-nav">
-        <div class="nav-item active" onclick="switchTab('dashboard')" id="nav-dashboard">
+        <div class="nav-item active" onclick="window.switchTab('dashboard')" id="nav-dashboard">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
             <span>Dashboard</span>
         </div>
-        <div class="nav-item" onclick="switchTab('factory')" id="nav-factory">
+        <div class="nav-item" onclick="window.switchTab('factory')" id="nav-factory">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
             <span>Factory</span>
         </div>
@@ -152,6 +207,15 @@
     <!-- Toast Container -->
     <div id="toastContainer" style="position: fixed; top: 20px; right: 20px; z-index: 9999; pointer-events: none;"></div>
 
-    <script src="static/js/script.js"></script>
+    <!-- Bot Details Modal -->
+    <div id="botDetailsModal" class="modal hidden">
+        <div class="modal-content">
+            <span class="close-modal" onclick="window.closeBotDetails()">&times;</span>
+            <h2 id="modalBotSymbol">BOT DETAILS</h2>
+            <div id="modalBotContent"></div>
+        </div>
+    </div>
+
+    <script src="../static/js/script.js"></script>
 </body>
 </html>

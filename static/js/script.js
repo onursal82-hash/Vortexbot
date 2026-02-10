@@ -60,38 +60,8 @@ async function loadDashboardData() {
             pnlEl.className = 'pnl-value-main ' + (netPnl >= 0 ? 'text-cyan' : 'text-pink');
         }
 
-        // 2. Update Asset Cards (Stacked)
-        const assetsContainer = document.getElementById('assets-container');
-        if (assetsContainer) {
-            const tickers = data.ticker || {};
-            // Prioritize specific coins if available, else just top ones
-            const displayCoins = ['SOL-USDT', 'BNB-USDT', 'BTC-USDT']; 
-            
-            const html = displayCoins.map(pair => {
-                const t = tickers[pair];
-                if (!t) return '';
-                const last = parseFloat(t.last).toLocaleString();
-                const change = parseFloat(t.change);
-                const changeClass = change >= 0 ? 'text-cyan' : 'text-pink';
-                const sign = change >= 0 ? '+' : '';
-                const symbol = pair.split('-')[0];
-
-                return `
-                <div class="asset-item">
-                    <div>
-                        <div class="asset-symbol">${symbol}</div>
-                        <div class="asset-price font-mono">$${last}</div>
-                    </div>
-                    <div class="asset-change ${changeClass}">${sign}${change.toFixed(2)}%</div>
-                </div>
-                `;
-            }).join('');
-            
-            // Only update if content changed to prevent flicker (simple check)
-            if (assetsContainer.innerHTML.length !== html.length) {
-                assetsContainer.innerHTML = html;
-            }
-        }
+        // 2. Update Integrated Coins
+        updateIntegratedCoins(data.ticker || {});
 
         // 3. Update Balance & Bot Count
         const totalBal = parseFloat(data.financials.total_balance || 0);
@@ -110,6 +80,26 @@ async function loadDashboardData() {
     }
 }
 
+function updateIntegratedCoins(tickers) {
+    const coins = ['BTC', 'ETH', 'SOL', 'XRP', 'BNB'];
+    coins.forEach(coin => {
+        const pair = `${coin}-USDT`;
+        const t = tickers[pair];
+        const el = document.getElementById(`price-${coin}`);
+        if (el && t) {
+            const price = parseFloat(t.last);
+            // Format: < $10 use 4 decimals, else 2
+            const fmtPrice = price < 10 ? price.toFixed(4) : price.toLocaleString(undefined, {maximumFractionDigits: 2});
+            
+            el.innerText = `$${fmtPrice}`;
+            
+            // Color based on change
+            const change = parseFloat(t.change);
+            el.style.color = change >= 0 ? 'var(--accent-cyan)' : 'var(--accent-pink)';
+        }
+    });
+}
+
 function updateActiveBotsList(bots) {
     const container = document.getElementById('activeBotCards');
     if (!container) return;
@@ -125,35 +115,38 @@ function updateActiveBotsList(bots) {
         const sign = pnl >= 0 ? '+' : '';
         const pnlAmt = (bot.investment * (pnl / 100)).toFixed(2);
         
-        // Calculate Uptime (mock/simple)
         let uptime = '0m';
         if(bot.start_time) {
-            const diff = (new Date() - new Date(bot.start_time)) / 60000; // mins
+            const diff = (new Date() - new Date(bot.start_time)) / 60000;
             const hrs = Math.floor(diff / 60);
             const mins = Math.floor(diff % 60);
             uptime = hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`;
         }
 
+        // Add onclick to view details
+        // Note: stopPropagation on buttons to prevent triggering modal when clicking buttons
         return `
-        <div class="op-card">
+        <div class="op-card" onclick="window.viewBotDetails('${bot.symbol}')">
             <div class="op-header">
                 <span style="color:#fff;">${bot.symbol}</span>
                 <span class="${pnlClass}">${sign}${pnl}% ($${pnlAmt})</span>
             </div>
             <div class="op-details">
                 <div>Price: <span class="font-mono text-white">$${parseFloat(bot.current_price).toLocaleString()}</span></div>
+                <div>Entry: <span class="font-mono text-white">$${parseFloat(bot.average_entry || 0).toLocaleString()}</span></div>
                 <div>Uptime: <span class="font-mono text-white">${uptime}</span></div>
-                <div>Active SO: <span style="color:#a084e8; font-weight:bold;">${bot.safety_orders_filled}/5</span></div>
-                <div>Status: <span style="color:#ccc;">${bot.status}</span></div>
+                <div>SO: <span style="color:#a084e8; font-weight:bold;">${bot.safety_orders_filled}/${bot.max_safety_orders}</span></div>
             </div>
             <div class="op-buttons">
-                <button class="btn-panic" onclick="window.stopBot('${bot.symbol}', 'panic')">PANIC SELL</button>
-                <button class="btn-stop" onclick="window.stopBot('${bot.symbol}', 'stop')">STOP</button>
+                <button class="btn-panic" onclick="event.stopPropagation(); window.stopBot('${bot.symbol}', 'panic')">PANIC SELL</button>
+                <button class="btn-stop" onclick="event.stopPropagation(); window.stopBot('${bot.symbol}', 'stop')">STOP</button>
             </div>
         </div>
         `;
     }).join('');
 
+    // Only update if content changed (rudimentary check to avoid killing scroll/interactions constantly)
+    // But since we have onclicks, direct innerHTML replace is safe enough for this scale
     container.innerHTML = html;
 }
 
@@ -196,19 +189,14 @@ window.selectPair = function(symbol) {
     if(results) results.style.display = 'none';
 }
 
-window.startVortexStrategy = async function() {
-    const input = document.getElementById('factorySearch');
-    const symbol = input ? input.value : '';
+// Shared payload builder
+function buildBotPayload(symbol) {
+    const getVal = (id) => {
+        const el = document.getElementById(id);
+        return el ? el.value : null;
+    };
     
-    if (!symbol || symbol.length < 3) {
-        showToast('Please select a market first!', 'error');
-        return;
-    }
-
-    // Use default hidden values
-    const getVal = (id) => document.getElementById(id).value;
-    
-    const payload = {
+    return {
         symbol: symbol,
         investment: parseFloat(getVal('fBase')),
         dca_config: {
@@ -220,13 +208,17 @@ window.startVortexStrategy = async function() {
             price_deviation: parseFloat(getVal('fDev')),
             take_profit: parseFloat(getVal('fTP')),
             tp_type: getVal('fTPType'),
-            profit_currency: getVal('fProfitCurrency'),
+            profit_currency: getVal('fProfitCurrency'), // New
             stop_action: getVal('fStopAction'),
             stop_loss_enabled: true,
-            stop_loss: 5.0
+            stop_loss: 5.0,
+            continuous_mode: getVal('fContinuousMode') === 'true', // New
+            entry_type: getVal('fEntryType') // New
         }
     };
+}
 
+async function sendBotCreateRequest(payload) {
     try {
         const res = await fetch('/api/create_bot', {
             method: 'POST',
@@ -236,9 +228,9 @@ window.startVortexStrategy = async function() {
         const data = await res.json();
         
         if (data.status === 'success') {
-            showToast('⚡ Strategy Activated: ' + symbol, 'success');
+            showToast('⚡ Strategy Activated: ' + payload.symbol, 'success');
             // Clear search
-            input.value = '';
+            document.getElementById('factorySearch').value = '';
             document.getElementById('factorySelectedDisplay').style.display = 'none';
             loadDashboardData();
         } else {
@@ -249,7 +241,40 @@ window.startVortexStrategy = async function() {
     }
 }
 
-// Backward compatibility alias just in case
+window.startVortexStrategy = async function() {
+    const input = document.getElementById('factorySearch');
+    const symbol = input ? input.value : '';
+    
+    if (!symbol || symbol.length < 3) {
+        showToast('Please select a market first!', 'error');
+        return;
+    }
+    
+    // Standard Start uses the configured payload
+    const payload = buildBotPayload(symbol);
+    await sendBotCreateRequest(payload);
+}
+
+window.launchCustomBot = async function() {
+    const input = document.getElementById('factorySearch');
+    const symbol = input ? input.value : '';
+    
+    if (!symbol || symbol.length < 3) {
+        showToast('Please select a market first!', 'error');
+        return;
+    }
+
+    // Custom Bot Logic: Explicitly uses the user-defined parameters
+    // In this implementation, it's the same as startVortexStrategy because
+    // the UI grid is the "Custom" interface. 
+    // We can add specific "Custom" flags if backend needs differentiation.
+    const payload = buildBotPayload(symbol);
+    payload.is_custom = true; // Flag for backend if needed
+    
+    await sendBotCreateRequest(payload);
+}
+
+// Backward compatibility
 window.launchFactoryBot = window.startVortexStrategy;
 
 window.stopBot = async function(symbol, action) {
@@ -271,6 +296,65 @@ window.stopBot = async function(symbol, action) {
         }
     } catch(e) {
         showToast('Network Error', 'error');
+    }
+}
+
+// --- Bot Details Modal ---
+window.viewBotDetails = async function(symbol) {
+    // We can fetch fresh details or find in current dashboard data
+    // For simplicity, we'll fetch or use the active list logic if we stored it globally
+    // Let's just fetch dashboard data again or store it in window.lastBots
+    
+    // Quick hack: iterate through DOM or re-fetch. 
+    // Better: fetch specific bot details
+    try {
+        // Assuming we have the data from the last poll in a global or we can find it
+        // Since we don't store it globally in init, let's just fetch it for accuracy
+        const res = await fetch('/api/dashboard?t=' + Date.now());
+        const data = await res.json();
+        const bot = data.bots.find(b => b.symbol === symbol);
+        
+        if (!bot) return;
+
+        const modal = document.getElementById('botDetailsModal');
+        const title = document.getElementById('modalBotSymbol');
+        const content = document.getElementById('modalBotContent');
+        
+        title.innerText = `${bot.symbol} DETAILS`;
+        
+        const config = bot.dca_config || {};
+        
+        content.innerHTML = `
+            <div class="detail-row"><span class="detail-label">Status</span> <span class="detail-val" style="color:${bot.status === 'active' ? '#03DAC6' : 'orange'}">${bot.status}</span></div>
+            <div class="detail-row"><span class="detail-label">PNL</span> <span class="detail-val">${bot.pnl}%</span></div>
+            <div class="detail-row"><span class="detail-label">Investment</span> <span class="detail-val">$${bot.investment}</span></div>
+            <br>
+            <div class="detail-row"><span class="detail-label">Base Order</span> <span class="detail-val">$${config.base_order}</span></div>
+            <div class="detail-row"><span class="detail-label">Safety Order</span> <span class="detail-val">$${config.safety_order}</span></div>
+            <div class="detail-row"><span class="detail-label">Max Safety</span> <span class="detail-val">${config.max_safety_orders}</span></div>
+            <div class="detail-row"><span class="detail-label">Take Profit</span> <span class="detail-val">${config.take_profit}%</span></div>
+            <div class="detail-row"><span class="detail-label">Deviation</span> <span class="detail-val">${config.price_deviation}%</span></div>
+            <div class="detail-row"><span class="detail-label">Vol Scale</span> <span class="detail-val">${config.volume_scale}</span></div>
+            <div class="detail-row"><span class="detail-label">Step Scale</span> <span class="detail-val">${config.step_scale}</span></div>
+            <div class="detail-row"><span class="detail-label">Profit Currency</span> <span class="detail-val">${config.profit_currency || 'quote'}</span></div>
+            <div class="detail-row"><span class="detail-label">Mode</span> <span class="detail-val">${config.continuous_mode ? 'Loop' : 'One-time'}</span></div>
+        `;
+        
+        modal.classList.remove('hidden');
+    } catch(e) {
+        console.error(e);
+    }
+}
+
+window.closeBotDetails = function() {
+    document.getElementById('botDetailsModal').classList.add('hidden');
+}
+
+// Close modal on outside click
+window.onclick = function(event) {
+    const modal = document.getElementById('botDetailsModal');
+    if (event.target == modal) {
+        modal.classList.add('hidden');
     }
 }
 

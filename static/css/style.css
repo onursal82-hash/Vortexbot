@@ -35,7 +35,7 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    background: transparent; /* Seamless blend */
+    background: transparent;
     position: relative;
     z-index: 100;
 }
@@ -43,20 +43,16 @@ body {
 .brand-center {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 12px;
 }
 
-.logo-mark {
-    width: 24px;
-    height: 24px;
-    background: radial-gradient(circle, var(--accent-cyan), transparent);
-    border-radius: 50%;
-    box-shadow: 0 0 10px var(--accent-cyan);
+.logo-mark-header svg {
+    filter: drop-shadow(0 0 5px var(--accent-cyan));
 }
 
 .vortex-title-gold {
     font-weight: 900;
-    font-size: 1.2rem;
+    font-size: 1.4rem;
     background: linear-gradient(to right, #FFD700, #FDB931);
     -webkit-background-clip: text;
     color: transparent;
@@ -70,7 +66,7 @@ body {
     flex: 1;
     overflow-y: auto;
     padding: 15px;
-    padding-bottom: 80px; /* Space for bottom nav */
+    padding-bottom: 90px; /* Space for bottom nav */
 }
 
 /* --- Cards & General UI --- */
@@ -88,37 +84,37 @@ body {
 .text-pink { color: var(--accent-pink); }
 .font-mono { font-family: var(--font-mono); }
 
-/* --- Dashboard Specifics (Mobile Layout) --- */
+/* --- Dashboard Specifics --- */
 .dashboard-layout {
     display: flex;
     flex-direction: column;
     gap: 12px;
 }
 
-/* The Vertical Pill for PnL */
+/* Vertical Pill for PnL with Integrated Coins */
 .pnl-pill-card {
     background: linear-gradient(180deg, rgba(13, 43, 45, 0.9), rgba(6, 30, 33, 1));
     border: 1px solid var(--border-color);
-    border-radius: 40px; /* Pill shape */
-    padding: 30px 20px;
+    border-radius: 30px;
+    padding: 20px;
     text-align: center;
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
+    justify-content: flex-start;
     box-shadow: 0 0 15px rgba(3, 218, 198, 0.1);
-    min-height: 250px;
+    min-height: auto;
 }
 
 .pnl-circle-glow {
-    width: 120px;
-    height: 120px;
+    width: 100px;
+    height: 100px;
     border-radius: 50%;
     border: 2px solid rgba(3, 218, 198, 0.3);
     display: flex;
     align-items: center;
     justify-content: center;
-    margin-bottom: 15px;
+    margin-bottom: 10px;
     box-shadow: 0 0 20px rgba(3, 218, 198, 0.1), inset 0 0 20px rgba(3, 218, 198, 0.1);
     position: relative;
 }
@@ -129,15 +125,15 @@ body {
     top: -2px;
     left: 50%;
     transform: translateX(-50%);
-    width: 8px;
-    height: 8px;
+    width: 6px;
+    height: 6px;
     background: var(--accent-cyan);
     border-radius: 50%;
     box-shadow: 0 0 10px var(--accent-cyan);
 }
 
 .pnl-value-main {
-    font-size: 1.5rem;
+    font-size: 1.4rem;
     font-weight: bold;
     color: var(--accent-cyan);
     text-shadow: 0 0 10px rgba(3, 218, 198, 0.5);
@@ -147,40 +143,45 @@ body {
     color: var(--accent-yellow);
     font-weight: 800;
     letter-spacing: 1px;
-    font-size: 1.1rem;
+    font-size: 1rem;
     text-transform: uppercase;
+    margin-bottom: 15px;
 }
 
-/* Asset Row Items */
-.asset-item {
+/* Integrated Coins Grid */
+.integrated-coins {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 8px;
+    width: 100%;
+    margin-top: 10px;
+    border-top: 1px solid rgba(255,255,255,0.05);
+    padding-top: 15px;
+}
+
+.coin-pill {
     display: flex;
-    justify-content: space-between;
+    flex-direction: column;
     align-items: center;
-    background: var(--bg-card);
-    border: 1px solid var(--border-color);
-    border-radius: 12px;
-    padding: 16px;
-    margin-bottom: 8px;
+    background: rgba(255,255,255,0.03);
+    padding: 6px 4px;
+    border-radius: 8px;
 }
 
-.asset-symbol {
-    font-weight: 800;
-    font-size: 1.1rem;
-    color: var(--accent-yellow);
-}
-
-.asset-price {
-    color: #fff;
-    font-size: 0.95rem;
-    margin-top: 4px;
-}
-
-.asset-change {
+.coin-name {
+    font-size: 0.7rem;
+    color: var(--text-secondary);
     font-weight: bold;
-    font-size: 1.1rem;
 }
 
-/* Stats Grid (Balance & Active Bots) */
+.coin-price {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: #fff;
+    margin-top: 2px;
+}
+
+/* Stats Grid */
 .stats-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -211,105 +212,156 @@ body {
 }
 
 /* --- Factory / Strategy View --- */
+.strategy-card {
+    border: 1px solid var(--accent-cyan);
+    box-shadow: 0 0 15px rgba(3, 218, 198, 0.1);
+}
+
 .strategy-header {
-    color: #a084e8; /* Purple tint */
+    color: var(--accent-cyan);
     text-transform: uppercase;
-    font-weight: 700;
+    font-weight: 800;
     text-align: center;
+    margin-bottom: 20px;
+    letter-spacing: 1px;
+    font-size: 1.1rem;
+}
+
+.action-buttons-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
     margin-bottom: 15px;
-    letter-spacing: 0.5px;
 }
 
 .btn-start-dca {
-    width: 100%;
     background: var(--accent-yellow);
     color: #000;
     border: none;
-    padding: 16px;
+    padding: 14px;
     border-radius: 8px;
     font-weight: 800;
-    font-size: 1rem;
+    font-size: 0.9rem;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
+    gap: 6px;
     text-transform: uppercase;
-    box-shadow: inset 0 -2px 5px rgba(0,0,0,0.2);
+    box-shadow: 0 4px 10px rgba(255, 215, 0, 0.2);
     cursor: pointer;
+    transition: transform 0.1s;
+}
+
+.btn-custom-bot {
+    background: transparent;
+    color: var(--accent-cyan);
+    border: 1px solid var(--accent-cyan);
+    padding: 14px;
+    border-radius: 8px;
+    font-weight: 800;
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    text-transform: uppercase;
+    cursor: pointer;
+    box-shadow: 0 4px 10px rgba(3, 218, 198, 0.1);
+}
+
+.btn-start-dca:active, .btn-custom-bot:active {
+    transform: scale(0.98);
 }
 
 .search-input {
     width: 100%;
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid transparent;
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid var(--border-color);
     border-radius: 8px;
-    padding: 14px;
+    padding: 12px;
     color: #fff;
-    font-size: 1rem;
+    font-size: 0.9rem;
     outline: none;
     text-align: center;
-    margin-top: 10px;
+    transition: border-color 0.2s;
 }
 
 .search-input:focus {
     border-color: var(--accent-cyan);
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(0, 0, 0, 0.3);
+}
+
+.config-item label {
+    display: block;
+    color: #8b9bb4;
+    font-size: 0.75rem;
+    margin-bottom: 4px;
+    text-transform: uppercase;
+}
+
+select.search-input {
+    appearance: none;
+    text-align-last: center;
 }
 
 /* Active Operation Card */
-.op-card {
-    background: var(--bg-card);
-    border-left: 3px solid var(--accent-cyan);
-    border-radius: 8px;
-    padding: 15px;
-    position: relative;
-    overflow: hidden;
+.active-ops-container {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding-bottom: 20px; /* Prevent cut-off */
 }
 
-.op-card::before {
-    content: '';
-    position: absolute;
-    left: 0;
-    top: 0;
-    bottom: 0;
-    width: 3px;
-    background: var(--accent-cyan);
-    box-shadow: 0 0 10px var(--accent-cyan);
+.op-card {
+    background: linear-gradient(135deg, #0d2b2d 0%, #081f21 100%);
+    border: 1px solid rgba(255,255,255,0.05);
+    border-left: 4px solid var(--accent-cyan);
+    border-radius: 12px;
+    padding: 16px;
+    position: relative;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    cursor: pointer; /* Clickable for details */
+    transition: transform 0.1s;
+}
+
+.op-card:active {
+    transform: scale(0.99);
 }
 
 .op-header {
     display: flex;
     justify-content: space-between;
-    margin-bottom: 10px;
+    margin-bottom: 12px;
     font-size: 1.1rem;
-    font-weight: bold;
+    font-weight: 800;
+    letter-spacing: 0.5px;
 }
 
 .op-details {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    font-size: 0.9rem;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    font-size: 0.85rem;
     color: #ccc;
-    text-align: right;
+    margin-bottom: 15px;
 }
 
 .op-buttons {
     display: flex;
     gap: 10px;
-    margin-top: 15px;
+    margin-top: 5px;
 }
 
 .btn-panic {
     flex: 1;
-    background: #e0e0e0;
-    color: #000;
-    border: none;
+    background: rgba(255, 64, 129, 0.2);
+    color: var(--accent-pink);
+    border: 1px solid var(--accent-pink);
     padding: 10px;
     font-weight: bold;
-    border-radius: 4px;
+    border-radius: 6px;
     text-transform: uppercase;
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     cursor: pointer;
 }
 
@@ -320,11 +372,64 @@ body {
     color: #aaa;
     padding: 10px;
     font-weight: bold;
-    border-radius: 4px;
+    border-radius: 6px;
     text-transform: uppercase;
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     cursor: pointer;
 }
+
+/* --- Modal --- */
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.8);
+    z-index: 2000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(5px);
+}
+
+.modal-content {
+    background: #0d2b2d;
+    border: 1px solid var(--accent-cyan);
+    width: 90%;
+    max-width: 400px;
+    padding: 20px;
+    border-radius: 16px;
+    position: relative;
+    box-shadow: 0 0 30px rgba(3, 218, 198, 0.2);
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+.close-modal {
+    position: absolute;
+    top: 15px;
+    right: 20px;
+    font-size: 1.5rem;
+    color: #fff;
+    cursor: pointer;
+}
+
+#modalBotContent {
+    color: #ccc;
+    font-size: 0.9rem;
+    line-height: 1.6;
+}
+
+.detail-row {
+    display: flex;
+    justify-content: space-between;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+    padding: 8px 0;
+}
+
+.detail-label { color: var(--text-secondary); }
+.detail-val { color: #fff; font-family: var(--font-mono); font-weight: bold; }
 
 /* --- Bottom Nav --- */
 .bottom-nav {
@@ -332,14 +437,15 @@ body {
     bottom: 0;
     left: 0;
     width: 100%;
-    height: 65px;
-    background: var(--nav-bg);
+    height: 70px;
+    background: rgba(5, 24, 26, 0.95);
     border-top: 1px solid rgba(255, 255, 255, 0.05);
     display: flex;
     justify-content: space-around;
     align-items: center;
     z-index: 1000;
     backdrop-filter: blur(10px);
+    padding-bottom: 10px; /* iPhone home bar spacing */
 }
 
 .nav-item {
@@ -347,14 +453,15 @@ body {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 4px;
+    gap: 6px;
     color: #fff;
-    opacity: 0.6;
+    opacity: 0.5;
     font-size: 0.7rem;
     text-transform: uppercase;
     cursor: pointer;
     width: 100%;
     height: 100%;
+    transition: opacity 0.2s;
 }
 
 .nav-item.active {
@@ -366,11 +473,6 @@ body {
     width: 24px;
     height: 24px;
 }
-
-/* Desktop Hiding */
-/* @media (min-width: 769px) {
-    .bottom-nav { display: none; }
-} */
 
 /* Utilities */
 .hidden { display: none !important; }
