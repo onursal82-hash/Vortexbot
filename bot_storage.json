@@ -1,0 +1,39 @@
+{
+    "users": {
+        "onursal-82@hotmail.com": {
+            "password": "scrypt:32768:8:1$DtAeFfk7Fvxv4i6U$909165e08ccc617e390b14331fab569e86a827d8c47c991077b0a429419faa9d0a2d744fea99d38c9076544d1d2cc6322c40a1e81f9b9e2380b6c374d3261c5f",
+            "bots": {
+                "XRP-USDT": {
+                    "symbol": "XRP-USDT",
+                    "status": "running",
+                    "entry_price": 1.3995,
+                    "current_price": 1.4,
+                    "investment": 100.0,
+                    "pnl": 0.04,
+                    "dca_config": {
+                        "base_order": 100,
+                        "safety_order": 150,
+                        "max_safety_orders": 5,
+                        "volume_scale": 1.5,
+                        "step_scale": 1.5,
+                        "price_deviation": 1.5,
+                        "take_profit": 1.5,
+                        "tp_type": "total_volume",
+                        "profit_currency": "quote",
+                        "stop_action": "close",
+                        "stop_loss_enabled": true,
+                        "stop_loss": 5
+                    },
+                    "safety_orders_filled": 0,
+                    "start_time": "2026-02-10T17:41:00.252479"
+                }
+            },
+            "financials": {
+                "total_balance": 10000.0,
+                "reserved_capital": 100.0,
+                "net_pnl": 0.0
+            },
+            "history": []
+        }
+    }
+}

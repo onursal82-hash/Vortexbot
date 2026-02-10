@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>VORTEX MOBILE</title>
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    
+    <!-- PWA -->
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+    <meta name="theme-color" content="#0d2b2d">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    
+    <!-- Icons -->
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='assets/brand/vortex-ultra-final.png') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='assets/brand/vortex-ultra-final.png') }}">
+</head>
+<body>
+
+    <!-- Responsive Header -->
+    <header class="nav-header">
+        
+        <!-- Logo (Always Visible) -->
+        <div style="display: flex; align-items: center;">
+            <img src="{{ url_for('static', filename='assets/brand/vortex-ultra-final.png') }}" 
+                 alt="Vortex" 
+                 style="height: 50px; width: auto; object-fit: contain;">
+        </div>
+        
+        <!-- Desktop Title (Hidden on Mobile) -->
+        <div class="brand-center">
+            <div class="vortex-title-gold" style="font-family: 'Inter', sans-serif; font-size: 2rem; letter-spacing: 2px;">VORTEX</div>
+            <div style="font-family: var(--font-mono); color: #d4af37; font-size: 0.8rem; letter-spacing: 2px; font-weight: 700;">DCA TRADING BOT</div>
+        </div>
+
+        <!-- Desktop Nav (Hidden on Mobile) -->
+        <div class="nav-tabs">
+            <div class="nav-tab active" onclick="switchTab('dashboard')">Dashboard</div>
+            <div class="nav-tab" onclick="switchTab('factory')">Bot Factory</div>
+            <div class="nav-tab" onclick="window.location.href='/logout'" style="color: var(--danger);">Logout</div>
+        </div>
+
+        <!-- Mobile Right Icons (Hidden on Desktop) -->
+        <div class="mobile-header-icons" style="display: none;">
+            <div style="width: 10px; height: 10px; background: #03DAC6; border-radius: 50%; box-shadow: 0 0 10px #03DAC6;"></div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <div class="main-container">
+        
+        <!-- Toast Container -->
+        <div id="toastContainer" class="toast-container"></div>
+
+        <!-- VIEW: Dashboard -->
+        <div id="view-dashboard" class="view-section active">
+            <div class="dashboard-grid">
+                
+                <!-- Left Cards -->
+                <div id="leftAssetCards" style="display: flex; flex-direction: column; gap: 10px;"></div>
+
+                <!-- Central PNL -->
+                <div class="card stat-card" style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 300px;">
+                    <div class="circular-pnl">
+                        <svg viewBox="0 0 36 36" class="circular-chart">
+                            <path class="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                            <path id="pnlCircle" class="circle" stroke-dasharray="0, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                            <text x="18" y="20.35" class="percentage" id="dashTotalPnl">0%</text>
+                        </svg>
+                        <div class="pnl-label" style="font-size: 1.2rem; font-weight: 800; color: #FFD700; margin-top: 10px;">NET PNL</div>
+                    </div>
+                </div>
+
+                <!-- Right Cards -->
+                <div id="rightAssetCards" style="display: flex; flex-direction: column; gap: 10px;"></div>
+
+            </div>
+            
+            <!-- Compact Stats -->
+             <div class="dashboard-grid" style="margin-top: 20px; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));">
+                <div class="card stat-card">
+                    <div class="stat-label">Balance</div>
+                    <div class="stat-value" id="totalBal" style="font-size: 1.1rem;">...</div>
+                </div>
+                <div class="card stat-card">
+                    <div class="stat-label">Active Bots</div>
+                    <div class="stat-value" id="dashBotCount" style="color: var(--accent); font-size: 1.1rem;">0</div>
+                </div>
+                <div class="card stat-card">
+                    <div class="stat-label">Reserved</div>
+                    <div class="stat-value" id="reservedBal" style="font-size: 1.1rem;">...</div>
+                </div>
+             </div>
+        </div>
+
+        <!-- VIEW: Bot Factory -->
+        <div id="view-factory" class="view-section">
+            <div class="split-layout">
+                
+                <!-- Settings Panel -->
+                <div class="card settings-panel">
+                    <h3 style="margin-top: 0; color: var(--accent); border-bottom: 1px solid var(--border); padding-bottom: 10px;">Strategy Engine</h3>
+                    
+                    <div class="vortex-button-box">
+                        <button onclick="startVortexStrategy()" class="btn-vortex">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+                            START VORTEX DCA
+                        </button>
+                    </div>
+                    
+                    <div class="input-group">
+                        <label>Select Market</label>
+                        <input type="text" id="factorySearch" placeholder="Search (e.g. BTC)...">
+                        <div id="searchResults" class="search-results"></div>
+                    </div>
+                    <div id="factorySelectedDisplay" style="font-size: 1.2rem; font-weight: 800; color: var(--text-primary); margin-bottom: 20px;">---</div>
+
+                    <div id="factoryConfig" style="display: none;">
+                        <div class="settings-grid">
+                            <div class="input-group"><label>Base Order</label><input type="number" id="fBase" value="100"></div>
+                            <div class="input-group"><label>Safety Order</label><input type="number" id="fSafety" value="150"></div>
+                            <div class="input-group"><label>Max Safety</label><input type="number" id="fMaxSafety" value="5"></div>
+                            <div class="input-group"><label>Take Profit %</label><input type="number" id="fTP" value="1.5" step="0.1"></div>
+                        </div>
+                        <button class="btn-primary" onclick="launchFactoryBot()">LAUNCH BOT</button>
+                    </div>
+                </div>
+
+                <!-- Active Bots -->
+                <div class="card active-bots-panel">
+                    <h3 style="margin-top: 0; margin-bottom: 15px;">Active Operations</h3>
+                    <div id="activeBotCards" class="bot-card-grid">
+                        <div style="text-align: center; padding: 40px; color: var(--text-secondary);">No Active Strategies</div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Bottom Navigation Bar (Mobile) -->
+    <nav class="bottom-nav">
+        <div class="bottom-nav-item active" onclick="switchTab('dashboard')">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+            <span>Dashboard</span>
+        </div>
+        <div class="bottom-nav-item" onclick="switchTab('factory')">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"></path></svg>
+            <span>Factory</span>
+        </div>
+        <div class="bottom-nav-item" onclick="window.location.href='/logout'">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+            <span>Logout</span>
+        </div>
+    </nav>
+
+    <script src="{{ url_for('static', filename='js/script.js') }}?v={{ range(1, 9999) | random }}"></script>
+    <script>
+        // Override switchTab to update bottom nav state
+        const originalSwitchTab = window.switchTab || function(){};
+        window.switchTab = function(tabName) {
+            // Update View
+            document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
+            document.getElementById('view-' + tabName).classList.add('active');
+            
+            // Update Desktop Nav
+            document.querySelectorAll('.nav-tab').forEach(el => el.classList.remove('active'));
+            // (Desktop nav click handlers usually set this, but we can sync it)
+            
+            // Update Bottom Nav
+            document.querySelectorAll('.bottom-nav-item').forEach(el => el.classList.remove('active'));
+            if(tabName === 'dashboard') {
+                document.querySelector('.bottom-nav-item:nth-child(1)').classList.add('active');
+                if(document.querySelector('.nav-tab:nth-child(1)')) document.querySelector('.nav-tab:nth-child(1)').classList.add('active');
+            } else if(tabName === 'factory') {
+                document.querySelector('.bottom-nav-item:nth-child(2)').classList.add('active');
+                if(document.querySelector('.nav-tab:nth-child(2)')) document.querySelector('.nav-tab:nth-child(2)').classList.add('active');
+            }
+        }
+    </script>
+</body>
+</html>

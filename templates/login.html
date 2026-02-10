@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DACEBOT PRO - Login</title>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        body {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            background: linear-gradient(135deg, #0a0a0a, #1a1a1a);
+        }
+        .login-card {
+            background: rgba(15, 15, 15, 0.95);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 215, 0, 0.2);
+            padding: 40px;
+            border-radius: 8px;
+            width: 100%;
+            max-width: 400px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            text-align: center;
+        }
+        .login-title {
+            color: #FFD700;
+            font-family: 'Inter', sans-serif;
+            font-weight: 800;
+            font-size: 2rem;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            line-height: 1;
+        }
+        .login-subtitle {
+            color: #c5a059;
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            margin-bottom: 30px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+        .login-input {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 15px;
+            background: rgba(255, 255, 255, 0.05); /* Glass-like */
+            border: 1px solid #333;
+            color: #fff;
+            border-radius: 4px;
+            font-family: var(--font-mono);
+        }
+        .login-input:focus {
+            border-color: #FFD700;
+            outline: none;
+            background: rgba(255, 255, 255, 0.1);
+        }
+        .btn-login {
+            width: 100%;
+            padding: 14px;
+            background: #39FF14; /* Neon Lime Green */
+            color: #000;
+            border: none;
+            font-weight: 800;
+            cursor: pointer;
+            border-radius: 4px;
+            text-transform: uppercase;
+            margin-top: 10px;
+            transition: all 0.2s;
+            box-shadow: 0 0 15px rgba(57, 255, 20, 0.4);
+            letter-spacing: 1px;
+        }
+        .btn-login:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 0 25px rgba(57, 255, 20, 0.6);
+            background: #4dff2e;
+        }
+        .error-msg {
+            color: #CF6679;
+            font-size: 0.8rem;
+            margin-bottom: 15px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-card">
+        <div class="login-title">VORTEX</div>
+        <div class="login-subtitle">DCA TRADING BOT</div>
+        <div id="errorMsg" class="error-msg"></div>
+        
+        <form id="authForm" onsubmit="handleAuth(event)">
+            <input type="email" id="email" class="login-input" placeholder="Enter Email to Access" required>
+            <!-- Password Removed for Bypass -->
+            <button type="submit" class="btn-login" id="submitBtn">INSTANT ACCESS</button>
+        </form>
+    </div>
+
+    <script>
+        async function handleAuth(e) {
+            e.preventDefault();
+            const email = document.getElementById('email').value;
+
+            try {
+                // Direct Login Bypass
+                const res = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ email })
+                });
+                const data = await res.json();
+                
+                if (data.status === 'success') {
+                    window.location.href = '/';
+                } else {
+                    const err = document.getElementById('errorMsg');
+                    err.innerText = data.message;
+                    err.style.display = 'block';
+                }
+            } catch (error) {
+                console.error('Auth Error:', error);
+            }
+        }
+    </script>
+</body>
+</html>
