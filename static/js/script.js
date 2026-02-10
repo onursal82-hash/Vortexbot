@@ -92,8 +92,12 @@ window.selectFactoryPair = function(symbol) {
 }
 
 window.launchFactoryBot = async function() {
+    window.alert('Request Sent: Launching Bot...'); // DEBUG: Verify mobile click
     const symbol = document.getElementById('factorySelectedDisplay').innerText;
-    if(symbol === '---') return;
+    if(symbol === '---') {
+        alert('Please select a symbol first!');
+        return;
+    }
 
     // Gather Full 3Commas Params from Left Panel
     const base = parseFloat(document.getElementById('fBase').value);

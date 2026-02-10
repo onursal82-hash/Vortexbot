@@ -247,27 +247,53 @@ input, select {
     /* 1. Ultra-Compact Header */
     .nav-header {
         height: 60px;
-        padding: 0 15px;
-        justify-content: space-between;
+        padding: 0 10px;
+        justify-content: center; /* Center everything */
     }
     
-    .brand-center, .nav-tabs {
-        display: none !important; /* Hide bulky text & desktop nav */
+    .nav-tabs {
+        display: none !important; /* Hide desktop nav */
+    }
+
+    .brand-center {
+        display: flex !important; /* Show title on mobile */
+        position: static;
+        transform: none;
+        flex-direction: row;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .brand-center .vortex-title-gold {
+        font-size: 1.2rem !important; /* Smaller mobile font */
+        margin: 0;
+        letter-spacing: 1px;
+    }
+
+    .brand-center div:nth-child(2), /* Hide "DCA TRADING BOT" subtitle on mobile if too long */
+    .market-ticker-container {
+        display: none !important; 
     }
 
     /* 2. Full-Screen Optimization */
     .main-container {
         padding: 10px !important;
-        padding-top: 75px !important; /* Header (60) + Gap (15) */
-        padding-bottom: 80px !important; /* Bottom Nav Space */
+        padding-top: 75px !important; 
+        padding-bottom: 120px !important; /* Increased padding for scroll */
         width: 100%;
     }
 
     .dashboard-grid {
-        grid-template-columns: 1fr; /* Single column */
+        grid-template-columns: 1fr; 
         gap: 15px;
-        width: 95%; /* 95% Width Rule */
+        width: 95%; 
         margin: 0 auto;
+        justify-items: center; /* Center grid items */
+    }
+    
+    /* Center Content inside Cards */
+    .card, .bot-card {
+        text-align: center;
     }
 
     .split-layout {
@@ -285,6 +311,13 @@ input, select {
     /* 3. Bottom Navigation Visible */
     .bottom-nav {
         display: flex;
+    }
+    
+    /* Ensure Buttons are Clickable */
+    button, .btn-primary, .btn-vortex, .btn-panic {
+        position: relative;
+        z-index: 20; /* High Z-Index */
+        pointer-events: auto;
     }
 
     /* 4. Typography & Symmetry */

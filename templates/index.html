@@ -24,17 +24,13 @@
     <!-- Responsive Header -->
     <header class="nav-header">
         
-        <!-- Logo (Always Visible) -->
-        <div style="display: flex; align-items: center;">
+        <!-- Brand Group (Logo + Text) -->
+        <div class="brand-center">
             <img src="{{ url_for('static', filename='assets/brand/vortex-ultra-final.png') }}" 
                  alt="Vortex" 
-                 style="height: 50px; width: auto; object-fit: contain;">
-        </div>
-        
-        <!-- Desktop Title (Hidden on Mobile) -->
-        <div class="brand-center">
+                 style="height: 40px; width: auto; object-fit: contain;">
             <div class="vortex-title-gold" style="font-family: 'Inter', sans-serif; font-size: 2rem; letter-spacing: 2px;">VORTEX</div>
-            <div style="font-family: var(--font-mono); color: #d4af37; font-size: 0.8rem; letter-spacing: 2px; font-weight: 700;">DCA TRADING BOT</div>
+            <div class="desktop-subtitle" style="font-family: var(--font-mono); color: #d4af37; font-size: 0.8rem; letter-spacing: 2px; font-weight: 700;">DCA TRADING BOT</div>
         </div>
 
         <!-- Desktop Nav (Hidden on Mobile) -->
