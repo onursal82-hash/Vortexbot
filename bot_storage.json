@@ -1,0 +1,485 @@
+{
+    "users": {
+        "legacy@admin.com": {
+            "password": "scrypt:32768:8:1$2QugIFYLiHPoWu7g$ec3407d1eeaacbad6d1019dace1ccc81015bde9a4ca521454d31f76cbe53fce0bb15411123a2199e07fdb2211c9494fca67ab6b462391d70385ba9279c938f14",
+            "bots": {
+                "BTC-USDT": {
+                    "symbol": "BTC-USDT",
+                    "status": "running",
+                    "entry_price": 70301.29218234762,
+                    "current_price": 69171.5,
+                    "investment": 1712.5,
+                    "pnl": -1.61,
+                    "dca_config": {
+                        "base_order": 100,
+                        "safety_order": 150,
+                        "max_safety_orders": 5,
+                        "volume_scale": 1.5,
+                        "step_scale": 1.5,
+                        "price_deviation": 1.5,
+                        "take_profit": 1.5,
+                        "stop_loss_enabled": true,
+                        "stop_loss": 5.0
+                    },
+                    "safety_orders_filled": 3,
+                    "start_time": "2026-02-08T19:39:10.903129"
+                },
+                "ETH-USDT": {
+                    "symbol": "ETH-USDT",
+                    "status": "completed",
+                    "entry_price": 2096.11675,
+                    "current_price": 2127.79,
+                    "investment": 1000.0,
+                    "pnl": 1.51,
+                    "dca_config": {
+                        "base_order": 100,
+                        "safety_order": 150,
+                        "max_safety_orders": 5,
+                        "volume_scale": 1.5,
+                        "step_scale": 1.5,
+                        "price_deviation": 1.5,
+                        "take_profit": 1.5,
+                        "stop_loss_enabled": true,
+                        "stop_loss": 5.0
+                    },
+                    "safety_orders_filled": 1,
+                    "start_time": "2026-02-08T19:39:10.903189"
+                },
+                "SOL-USDT": {
+                    "symbol": "SOL-USDT",
+                    "status": "completed",
+                    "entry_price": 86.6247,
+                    "current_price": 87.93,
+                    "investment": 1000.0,
+                    "pnl": 1.51,
+                    "dca_config": {
+                        "base_order": 100,
+                        "safety_order": 150,
+                        "max_safety_orders": 5,
+                        "volume_scale": 1.5,
+                        "step_scale": 1.5,
+                        "price_deviation": 1.5,
+                        "take_profit": 1.5,
+                        "stop_loss_enabled": true,
+                        "stop_loss": 5.0
+                    },
+                    "safety_orders_filled": 0,
+                    "start_time": "2026-02-08T19:39:10.903211"
+                },
+                "XRP-USDT": {
+                    "symbol": "XRP-USDT",
+                    "status": "completed",
+                    "entry_price": 1.4044362026173285,
+                    "current_price": 1.4316,
+                    "investment": 250.0,
+                    "pnl": 1.93,
+                    "dca_config": {
+                        "base_order": 100,
+                        "safety_order": 150,
+                        "max_safety_orders": 5,
+                        "volume_scale": 1.5,
+                        "step_scale": 1.5,
+                        "price_deviation": 1.5,
+                        "take_profit": 1.5,
+                        "tp_type": "total_volume",
+                        "profit_currency": "quote",
+                        "stop_action": "close",
+                        "stop_loss_enabled": true,
+                        "stop_loss": 5
+                    },
+                    "safety_orders_filled": 1,
+                    "start_time": "2026-02-08T23:19:13.226848"
+                },
+                "DOGE-USDT": {
+                    "symbol": "DOGE-USDT",
+                    "status": "completed",
+                    "entry_price": 0.09365563145660402,
+                    "current_price": 0.09508,
+                    "investment": 475.0,
+                    "pnl": 1.52,
+                    "dca_config": {
+                        "base_order": 100,
+                        "safety_order": 150,
+                        "max_safety_orders": 5,
+                        "volume_scale": 1.5,
+                        "step_scale": 1.5,
+                        "price_deviation": 1.5,
+                        "take_profit": 1.5,
+                        "tp_type": "total_volume",
+                        "profit_currency": "quote",
+                        "stop_action": "close",
+                        "stop_loss_enabled": true,
+                        "stop_loss": 5
+                    },
+                    "safety_orders_filled": 2,
+                    "start_time": "2026-02-08T23:25:17.671144"
+                },
+                "---": {
+                    "symbol": "---",
+                    "status": "running",
+                    "entry_price": 50000.0,
+                    "current_price": 50000.0,
+                    "investment": 20.0,
+                    "pnl": 0.0,
+                    "dca_config": {
+                        "base_order": 20.0,
+                        "safety_order": 40.0,
+                        "max_safety_orders": 15,
+                        "volume_scale": 1.05,
+                        "step_scale": 1.0,
+                        "price_deviation": 2.0,
+                        "take_profit": 1.5,
+                        "stop_action": "close",
+                        "stop_loss_enabled": false
+                    },
+                    "safety_orders_filled": 0,
+                    "start_time": "2026-02-08T23:32:49.632698"
+                },
+                "TRX-USDT": {
+                    "symbol": "TRX-USDT",
+                    "status": "running",
+                    "entry_price": 0.27934,
+                    "current_price": 0.27721,
+                    "investment": 20.0,
+                    "pnl": -0.76,
+                    "dca_config": {
+                        "base_order": 20.0,
+                        "safety_order": 40.0,
+                        "max_safety_orders": 15,
+                        "volume_scale": 1.05,
+                        "step_scale": 1.0,
+                        "price_deviation": 2.0,
+                        "take_profit": 1.5,
+                        "stop_action": "close",
+                        "stop_loss_enabled": false
+                    },
+                    "safety_orders_filled": 0,
+                    "start_time": "2026-02-08T23:33:09.543841"
+                },
+                "ETHFI-USDT": {
+                    "symbol": "ETHFI-USDT",
+                    "status": "running",
+                    "entry_price": 0.43495454889781077,
+                    "current_price": 0.434,
+                    "investment": 60.0,
+                    "pnl": -0.22,
+                    "dca_config": {
+                        "base_order": 20.0,
+                        "safety_order": 40.0,
+                        "max_safety_orders": 15,
+                        "volume_scale": 1.05,
+                        "step_scale": 1.0,
+                        "price_deviation": 2.0,
+                        "take_profit": 1.5,
+                        "stop_action": "close",
+                        "stop_loss_enabled": false,
+                        "loop_enabled": true
+                    },
+                    "safety_orders_filled": 1,
+                    "start_time": "2026-02-09T18:42:21.633749"
+                },
+                "SHIB-USDT": {
+                    "symbol": "SHIB-USDT",
+                    "status": "running",
+                    "entry_price": 5.995415700563101e-06,
+                    "current_price": 5.995e-06,
+                    "investment": 60.0,
+                    "pnl": -0.01,
+                    "dca_config": {
+                        "base_order": 20.0,
+                        "safety_order": 40.0,
+                        "max_safety_orders": 15,
+                        "volume_scale": 1.05,
+                        "step_scale": 1.0,
+                        "price_deviation": 2.0,
+                        "take_profit": 1.5,
+                        "stop_action": "close",
+                        "stop_loss_enabled": false,
+                        "loop_enabled": true
+                    },
+                    "safety_orders_filled": 1,
+                    "start_time": "2026-02-09T18:39:10.363883"
+                }
+            },
+            "financials": {
+                "total_balance": 10044.751225901764,
+                "reserved_capital": 1872.5,
+                "net_pnl": 44.75122590176457
+            },
+            "history": [
+                {
+                    "time": "11:16:53",
+                    "symbol": "SHIB-USDT",
+                    "type": "DCA Buy #1",
+                    "price": 5.954e-06,
+                    "pnl": "-2.07%"
+                },
+                {
+                    "time": "10:47:54",
+                    "symbol": "ETHFI-USDT",
+                    "type": "DCA Buy #1",
+                    "price": 0.4301,
+                    "pnl": "-3.35%"
+                },
+                {
+                    "time": "18:42:21",
+                    "symbol": "ETHFI-USDT",
+                    "type": "Loop Restart",
+                    "price": 0.445,
+                    "pnl": "0.00%"
+                },
+                {
+                    "time": "18:42:21",
+                    "symbol": "ETHFI-USDT",
+                    "type": "Take Profit",
+                    "price": 0.445,
+                    "pnl": "+1.56%"
+                },
+                {
+                    "time": "18:39:10",
+                    "symbol": "SHIB-USDT",
+                    "type": "Loop Restart",
+                    "price": 6.08e-06,
+                    "pnl": "0.00%"
+                },
+                {
+                    "time": "18:39:08",
+                    "symbol": "SHIB-USDT",
+                    "type": "Take Profit",
+                    "price": 6.08e-06,
+                    "pnl": "+1.53%"
+                },
+                {
+                    "time": "18:38:34",
+                    "symbol": "DOGE-USDT",
+                    "type": "Take Profit",
+                    "price": 0.09508,
+                    "pnl": "+1.52%"
+                },
+                {
+                    "time": "18:34:59",
+                    "symbol": "XRP-USDT",
+                    "type": "Take Profit",
+                    "price": 1.4316,
+                    "pnl": "+1.93%"
+                },
+                {
+                    "time": "17:08:43",
+                    "symbol": "BTC-USDT",
+                    "type": "DCA Buy #3",
+                    "price": 68378.4,
+                    "pnl": "-3.41%"
+                },
+                {
+                    "time": "13:43:51",
+                    "symbol": "DOGE-USDT",
+                    "type": "DCA Buy #2",
+                    "price": 0.09254,
+                    "pnl": "-2.26%"
+                },
+                {
+                    "time": "13:41:41",
+                    "symbol": "ETHFI-USDT",
+                    "type": "DCA Buy #2",
+                    "price": 0.433,
+                    "pnl": "-2.00%"
+                },
+                {
+                    "time": "13:39:30",
+                    "symbol": "SHIB-USDT",
+                    "type": "DCA Buy #1",
+                    "price": 5.921e-06,
+                    "pnl": "-3.36%"
+                },
+                {
+                    "time": "13:39:30",
+                    "symbol": "ETHFI-USDT",
+                    "type": "DCA Buy #1",
+                    "price": 0.4341,
+                    "pnl": "-5.26%"
+                },
+                {
+                    "time": "13:39:30",
+                    "symbol": "DOGE-USDT",
+                    "type": "DCA Buy #1",
+                    "price": 0.09307,
+                    "pnl": "-4.26%"
+                },
+                {
+                    "time": "13:39:30",
+                    "symbol": "XRP-USDT",
+                    "type": "DCA Buy #1",
+                    "price": 1.379,
+                    "pnl": "-4.53%"
+                },
+                {
+                    "time": "13:39:30",
+                    "symbol": "BTC-USDT",
+                    "type": "DCA Buy #2",
+                    "price": 68698.0,
+                    "pnl": "-3.53%"
+                },
+                {
+                    "time": "23:33:09",
+                    "symbol": "TRX-USDT",
+                    "type": "Base Order",
+                    "price": 0.27934,
+                    "pnl": "0.00%"
+                },
+                {
+                    "time": "23:32:49",
+                    "symbol": "---",
+                    "type": "Base Order",
+                    "price": 50000.0,
+                    "pnl": "0.00%"
+                },
+                {
+                    "time": "22:54:35",
+                    "symbol": "ETH-USDT",
+                    "type": "Take Profit",
+                    "price": 2127.79,
+                    "pnl": "+1.51%"
+                }
+            ]
+        },
+        "onursal-82@hotmail.com": {
+            "password": "scrypt:32768:8:1$3YKWJxm5NGqOHVUR$c8c3fe2d9dff5974ca53231faa901fbde354939189a0418f08fa4d8105e80bc555e5ccf1cbd8cf67abd21cb62c95bdfa24d1ad4a51b88c5f7d7b23e646222657",
+            "bots": {
+                "BTC-USDT": {
+                    "symbol": "BTC-USDT",
+                    "status": "running",
+                    "entry_price": 68634.8,
+                    "current_price": 69171.5,
+                    "investment": 20.0,
+                    "pnl": 0.78,
+                    "dca_config": {
+                        "base_order": 20.0,
+                        "safety_order": 40.0,
+                        "max_safety_orders": 15,
+                        "volume_scale": 1.05,
+                        "step_scale": 1.0,
+                        "price_deviation": 2.0,
+                        "take_profit": 1.5,
+                        "stop_action": "close",
+                        "stop_loss_enabled": false,
+                        "loop_enabled": true
+                    },
+                    "safety_orders_filled": 0,
+                    "start_time": "2026-02-09T13:40:51.273371"
+                }
+            },
+            "financials": {
+                "total_balance": 10000.0,
+                "reserved_capital": 20.0,
+                "net_pnl": 0.0
+            },
+            "history": []
+        },
+        "ekat_shap@hyotmail.com": {
+            "password": "scrypt:32768:8:1$3U6EIF8OKiMl06zb$0078a05fba2994812dc5807ecee7ec184eaa846f901f3ce623f4e30cf1a6ced04fda5408f7d26d9aa81f8e5e316210704e1f8ca0176a81a4f9f2d477029f311a",
+            "bots": {
+                "---": {
+                    "symbol": "---",
+                    "status": "running",
+                    "entry_price": 50000.0,
+                    "current_price": 50000.0,
+                    "investment": 20.0,
+                    "pnl": 0.0,
+                    "dca_config": {
+                        "base_order": 20.0,
+                        "safety_order": 40.0,
+                        "max_safety_orders": 15,
+                        "volume_scale": 1.05,
+                        "step_scale": 1.0,
+                        "price_deviation": 2.0,
+                        "take_profit": 1.5,
+                        "stop_action": "close",
+                        "stop_loss_enabled": false,
+                        "loop_enabled": true
+                    },
+                    "safety_orders_filled": 0,
+                    "start_time": "2026-02-09T13:01:07.127534"
+                },
+                "ETH-USDT": {
+                    "symbol": "ETH-USDT",
+                    "status": "running",
+                    "entry_price": 2010.8201112257543,
+                    "current_price": 2020.45,
+                    "investment": 60.0,
+                    "pnl": 0.48,
+                    "dca_config": {
+                        "base_order": 20.0,
+                        "safety_order": 40.0,
+                        "max_safety_orders": 15,
+                        "volume_scale": 1.05,
+                        "step_scale": 1.0,
+                        "price_deviation": 2.0,
+                        "take_profit": 1.5,
+                        "stop_action": "close",
+                        "stop_loss_enabled": false,
+                        "loop_enabled": true
+                    },
+                    "safety_orders_filled": 1,
+                    "start_time": "2026-02-09T13:02:10.371056"
+                }
+            },
+            "financials": {
+                "total_balance": 10000.0,
+                "reserved_capital": 80.0,
+                "net_pnl": 0.0
+            },
+            "history": [
+                {
+                    "time": "11:16:53",
+                    "symbol": "ETH-USDT",
+                    "type": "DCA Buy #1",
+                    "price": 1996.45,
+                    "pnl": "-2.14%"
+                }
+            ]
+        },
+        "onursal@hotmail.com": {
+            "password": "scrypt:32768:8:1$Ojt06abPGdvgBySQ$392a7869b02d58e30ef0dd04a884895301debfb84d7ef03ec7fad7ab6ebacae3485a9b4bf5db345625948e36d0eab4fbd6b3333646a415f2fd034af9e3e3702b",
+            "bots": {
+                "---": {
+                    "symbol": "---",
+                    "status": "running",
+                    "entry_price": 50000.0,
+                    "current_price": 50000.0,
+                    "investment": 20.0,
+                    "pnl": 0.0,
+                    "dca_config": {
+                        "base_order": 20.0,
+                        "safety_order": 40.0,
+                        "max_safety_orders": 15,
+                        "volume_scale": 1.05,
+                        "step_scale": 1.0,
+                        "price_deviation": 2.0,
+                        "take_profit": 1.5,
+                        "stop_action": "close",
+                        "stop_loss_enabled": false,
+                        "loop_enabled": true
+                    },
+                    "safety_orders_filled": 0,
+                    "start_time": "2026-02-09T13:27:44.461894"
+                }
+            },
+            "financials": {
+                "total_balance": 10000.0,
+                "reserved_capital": 20.0,
+                "net_pnl": 0.0
+            },
+            "history": []
+        },
+        "onursal82@hotmail.com": {
+            "password": "scrypt:32768:8:1$ZUVMYOQBrnRUjH1a$12f6a2bab942ebc62237b685bd7d27afb9da661525181593d5dacdbd2d7291494e83aa66edbf495e789f93a4da44f5701732ad80e24b4888872e14fb0a735f70",
+            "bots": {},
+            "financials": {
+                "total_balance": 10000.0,
+                "reserved_capital": 0.0,
+                "net_pnl": 0.0
+            },
+            "history": []
+        }
+    }
+}
