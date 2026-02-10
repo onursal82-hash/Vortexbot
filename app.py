@@ -50,6 +50,7 @@ exchange = ccxt.okx({
 # --- Constants ---
 STORAGE_FILE = 'bot_storage.json'
 DATA_LOCK = threading.Lock()
+GLOBAL_USER_ID = 'global_shared_workspace'
 
 # --- Global Data Store ---
 # Structure: { "users": { "email": { "password": "...", "bots": {}, "financials": {}, "history": [] } } }
@@ -85,6 +86,19 @@ def load_data():
         except Exception as e:
             logging.error(f"Failed to load storage: {e}")
             DATA = {"users": {}}
+    
+    # Ensure Global Workspace Exists
+    if GLOBAL_USER_ID not in DATA['users']:
+        DATA['users'][GLOBAL_USER_ID] = {
+            "password": generate_password_hash("global_secret"),
+            "bots": {},
+            "financials": {
+                "total_balance": 10000.00,
+                "reserved_capital": 0.00,
+                "net_pnl": 0.00
+            },
+            "history": []
+        }
 
 def save_data():
     with DATA_LOCK:
@@ -119,10 +133,14 @@ def login_required(f):
     return decorated_function
 
 def get_current_user_data():
-    email = session.get('user')
-    if not email or email not in DATA['users']:
+    """
+    MODIFIED: Returns the GLOBAL shared user data regardless of who is logged in.
+    This enables 'global visibility' across devices.
+    """
+    if 'user' not in session:
         return None
-    return DATA['users'][email]
+    # Instead of session['user'], we return the global workspace
+    return DATA['users'].get(GLOBAL_USER_ID)
 
 # --- DCA Engine (The Brain) ---
 def calculate_dca_logic(user_email, bot, current_price):
@@ -389,7 +407,7 @@ def api_login():
 
     # LOGIN BYPASS: Grant access immediately
     if email not in DATA['users']:
-        # Auto-register new user
+        # Auto-register new user (still needed for valid session)
         DATA['users'][email] = {
             "password": generate_password_hash("bypass_mode"),
             "bots": {},
@@ -438,7 +456,8 @@ def logout():
 @app.route('/api/dashboard')
 @login_required
 def dashboard_data():
-    user = get_current_user_data()
+    # MODIFIED: Get global data instead of session user data
+    user = DATA['users'].get(GLOBAL_USER_ID)
     if not user: return jsonify({}), 401
     
     bots = user.get('bots', {})
@@ -494,8 +513,8 @@ def get_symbols():
 @login_required
 def start_strategy():
     try:
-        user_email = session['user']
-        user_data = DATA['users'][user_email]
+        # MODIFIED: Use Global Workspace
+        user_data = DATA['users'][GLOBAL_USER_ID]
         bots = user_data['bots']
         
         try:
@@ -560,8 +579,8 @@ def start_strategy():
 @app.route('/api/bot_details/<bot_id>')
 @login_required
 def bot_details(bot_id):
-    user_email = session['user']
-    user_data = DATA['users'][user_email]
+    # MODIFIED: Use Global Workspace
+    user_data = DATA['users'][GLOBAL_USER_ID]
     bots = user_data.get('bots', {})
     
     # bot_id is the symbol
@@ -579,8 +598,8 @@ def bot_details(bot_id):
 @login_required
 def create_bot():
     try:
-        user_email = session['user']
-        user_data = DATA['users'][user_email]
+        # MODIFIED: Use Global Workspace
+        user_data = DATA['users'][GLOBAL_USER_ID]
         bots = user_data['bots']
         
         data = request.json
@@ -627,8 +646,8 @@ def create_bot():
 @app.route('/api/stop_bot', methods=['POST'])
 @login_required
 def stop_bot():
-    user_email = session['user']
-    user_data = DATA['users'][user_email]
+    # MODIFIED: Use Global Workspace
+    user_data = DATA['users'][GLOBAL_USER_ID]
     bots = user_data['bots']
     
     data = request.json
@@ -640,15 +659,15 @@ def stop_bot():
         user_data['financials']['reserved_capital'] -= bots[symbol]['investment']
         del bots[symbol]
         save_data()
-        logging.info(f"Bot Stopped: {symbol} for {user_email}")
+        logging.info(f"Bot Stopped: {symbol} for Global Workspace")
         return jsonify({"status": "success"})
     return jsonify({"status": "error"}), 404
 
 @app.route('/api/panic_sell', methods=['POST'])
 @login_required
 def panic_sell():
-    user_email = session['user']
-    user_data = DATA['users'][user_email]
+    # MODIFIED: Use Global Workspace
+    user_data = DATA['users'][GLOBAL_USER_ID]
     bots = user_data['bots']
     
     data = request.json
@@ -665,7 +684,7 @@ def panic_sell():
         
         del bots[symbol]
         save_data()
-        logging.info(f"Panic Sell: {symbol} for {user_email}")
+        logging.info(f"Panic Sell: {symbol} for Global Workspace")
         return jsonify({"status": "success"})
     return jsonify({"status": "error"}), 404
 
