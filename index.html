@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Vortex DCA</title>
+    <link rel="stylesheet" href="static/css/style.css">
+    <!-- Preload fonts if possible, or use system fonts fallback -->
+</head>
+<body>
+
+    <!-- Header -->
+    <header class="nav-header">
+        <div class="brand-center">
+            <div class="logo-mark"></div>
+            <div class="vortex-title-gold">VORTEX</div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <div class="main-container">
+
+        <!-- VIEW: DASHBOARD -->
+        <div id="view-dashboard" class="view-section">
+            <div class="dashboard-layout">
+                
+                <!-- 1. Net PnL (Vertical Pill) -->
+                <div class="pnl-pill-card">
+                    <div class="pnl-circle-glow">
+                        <div class="pnl-value-main" id="dashTotalPnl">+$0.00</div>
+                    </div>
+                    <div class="pnl-label">NET PNL</div>
+                </div>
+
+                <!-- 2. Asset Cards (Stacked) -->
+                <div id="assets-container">
+                    <!-- Populated by JS -->
+                    <!-- Example structure for reference:
+                    <div class="asset-item">
+                        <div>
+                            <div class="asset-symbol">SOL</div>
+                            <div class="asset-price">$83.56</div>
+                        </div>
+                        <div class="asset-change text-pink">-4.55%</div>
+                    </div>
+                    -->
+                </div>
+
+                <!-- 3. Balance & Bots (Grid) -->
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <div class="stat-label">Balance</div>
+                        <div class="stat-val font-mono" id="totalBal">$0.00</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-label">Active Bots</div>
+                        <div class="stat-val" id="dashBotCount" style="color: #a084e8;">0</div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- VIEW: FACTORY -->
+        <div id="view-factory" class="view-section hidden">
+            
+            <!-- Strategy Engine Card -->
+            <div class="card">
+                <div class="strategy-header">Strategy Engine</div>
+                
+                <button class="btn-start-dca" onclick="launchFactoryBot()">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+                    Start Vortex DCA
+                </button>
+
+                <div style="text-align: center; margin-top: 20px; color: #fff;">Select Market</div>
+                <input type="text" class="search-input" id="factorySearch" placeholder="Search (e.g. BTC)...">
+                
+                <div id="searchResults" style="margin-top: 10px; background: rgba(0,0,0,0.5); border-radius: 8px; display: none;">
+                    <!-- Results go here -->
+                </div>
+
+                <div style="text-align: center; margin-top: 15px; color: var(--text-secondary);">---</div>
+                
+                <div id="factorySelectedDisplay" style="text-align: center; color: var(--accent-yellow); font-weight: bold; margin-top: 5px; display:none;"></div>
+                
+                <!-- Hidden Config Inputs (Defaults used by JS) -->
+                <div id="factoryConfig" style="display:none;">
+                    <input type="hidden" id="fBase" value="20">
+                    <input type="hidden" id="fSafety" value="40">
+                    <input type="hidden" id="fMaxSafety" value="5">
+                    <input type="hidden" id="fVolScale" value="1.05">
+                    <input type="hidden" id="fStepScale" value="1.0">
+                    <input type="hidden" id="fDev" value="2.0">
+                    <input type="hidden" id="fTP" value="1.5">
+                    <input type="hidden" id="fTPType" value="total_volume">
+                    <input type="hidden" id="fProfitCurrency" value="quote">
+                    <input type="hidden" id="fStopAction" value="close">
+                </div>
+            </div>
+
+            <!-- Active Operations -->
+            <div style="margin-top: 20px;">
+                <div style="color: #fff; text-transform: uppercase; font-weight: bold; margin-bottom: 10px;">Active Operations</div>
+                <div id="activeBotCards" style="display: flex; flex-direction: column; gap: 10px;">
+                    <!-- JS Populates -->
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- Bottom Navigation -->
+    <div class="bottom-nav">
+        <div class="nav-item active" onclick="switchTab('dashboard')" id="nav-dashboard">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+            <span>Dashboard</span>
+        </div>
+        <div class="nav-item" onclick="switchTab('factory')" id="nav-factory">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+            <span>Factory</span>
+        </div>
+        <div class="nav-item" onclick="window.location.href='/logout'">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+            <span>Logout</span>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div id="toastContainer" style="position: fixed; top: 20px; right: 20px; z-index: 9999; pointer-events: none;"></div>
+
+    <script src="static/js/script.js"></script>
+</body>
+</html>
