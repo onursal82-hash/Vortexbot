@@ -2,9 +2,12 @@ import os
 import json
 import time
 import logging
+from logging.handlers import RotatingFileHandler
 import requests
 import ccxt
 import secrets
+import threading
+import shutil
 from functools import wraps
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask import Flask, render_template, jsonify, request, session, redirect, url_for
@@ -12,7 +15,17 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from datetime import datetime
 
 # --- Configuration & Logging ---
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+if not os.path.exists('logs'):
+    os.makedirs('logs')
+
+# Add RotatingFileHandler
+log_handler = RotatingFileHandler('logs/app.log', maxBytes=10*1024*1024, backupCount=5)
+log_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
+
+logging.basicConfig(level=logging.INFO, 
+                    format='%(asctime)s - %(levelname)s - %(message)s',
+                    handlers=[log_handler, logging.StreamHandler()])
+
 app = Flask(__name__)
 app.secret_key = os.getenv('FLASK_SECRET_KEY', secrets.token_hex(32))
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
@@ -36,6 +49,7 @@ exchange = ccxt.okx({
 
 # --- Constants ---
 STORAGE_FILE = 'bot_storage.json'
+DATA_LOCK = threading.Lock()
 
 # --- Global Data Store ---
 # Structure: { "users": { "email": { "password": "...", "bots": {}, "financials": {}, "history": [] } } }
@@ -73,11 +87,27 @@ def load_data():
             DATA = {"users": {}}
 
 def save_data():
+    with DATA_LOCK:
+        try:
+            tmp_file = STORAGE_FILE + ".tmp"
+            # Write to tmp first (atomic write pattern)
+            with open(tmp_file, 'w') as f:
+                json.dump(DATA, f, indent=4)
+            
+            # Rename to actual file
+            shutil.move(tmp_file, STORAGE_FILE)
+        except Exception as e:
+            logging.error(f"Failed to save storage: {e}")
+
+def backup_data():
+    """Daily backup of the database."""
     try:
-        with open(STORAGE_FILE, 'w') as f:
-            json.dump(DATA, f, indent=4)
+        if os.path.exists(STORAGE_FILE):
+            backup_file = 'bot_storage_backup.json'
+            shutil.copy(STORAGE_FILE, backup_file)
+            logging.info("Daily Backup Created.")
     except Exception as e:
-        logging.error(f"Failed to save storage: {e}")
+        logging.error(f"Backup failed: {e}")
 
 # --- Auth Helper ---
 def login_required(f):
@@ -99,115 +129,117 @@ def calculate_dca_logic(user_email, bot, current_price):
     """
     Executes the DCA logic for a specific bot.
     """
-    entry_price = bot['entry_price']
-    dca_config = bot.get('dca_config', {})
-    user_data = DATA['users'][user_email]
-    
-    # 1. Update Real-time PnL
-    pnl_percent = ((current_price - entry_price) / entry_price) * 100
-    bot['pnl'] = round(pnl_percent, 2)
-    bot['current_price'] = current_price
-    
-    # 2. Safety Order Logic
-    so_count = bot.get('safety_orders_filled', 0)
-    max_so = dca_config.get('max_safety_orders', 5)
-    
-    base_dev = dca_config.get('price_deviation', 1.5)
-    step_scale = dca_config.get('step_scale', 1.5)
-    
-    required_drop = base_dev * (step_scale ** so_count)
-    
-    if so_count < max_so and pnl_percent < -required_drop:
-        logging.info(f"DCA Trigger: Safety Order {so_count + 1} for {bot['symbol']} (User: {user_email})")
-        bot['safety_orders_filled'] += 1
+    try:
+        entry_price = bot['entry_price']
+        dca_config = bot.get('dca_config', {})
+        user_data = DATA['users'][user_email]
         
-        so_base_size = dca_config.get('safety_order', 0)
-        vol_scale = dca_config.get('volume_scale', 1.5)
+        # 1. Update Real-time PnL
+        pnl_percent = ((current_price - entry_price) / entry_price) * 100
+        bot['pnl'] = round(pnl_percent, 2)
+        bot['current_price'] = current_price
         
-        so_volume = so_base_size * (vol_scale ** so_count)
+        # 2. Safety Order Logic
+        so_count = bot.get('safety_orders_filled', 0)
+        max_so = dca_config.get('max_safety_orders', 5)
         
-        bot['investment'] += so_volume
-        user_data['financials']['reserved_capital'] += so_volume
+        base_dev = dca_config.get('price_deviation', 1.5)
+        step_scale = dca_config.get('step_scale', 1.5)
         
-        current_coins = (bot['investment'] - so_volume) / entry_price
-        new_coins = so_volume / current_price
-        bot['entry_price'] = bot['investment'] / (current_coins + new_coins)
-
-        # Log Trade
-        user_data['history'].insert(0, {
-            "time": datetime.now().strftime("%H:%M:%S"),
-            "symbol": bot['symbol'],
-            "type": f"DCA Buy #{so_count + 1}",
-            "price": current_price,
-            "pnl": f"{pnl_percent:.2f}%"
-        })
-        if len(user_data['history']) > 50: user_data['history'].pop()
-
-    # 3. Take Profit Logic
-    tp_target = dca_config.get('take_profit', 1.5)
-    if pnl_percent >= tp_target:
-        # Check Loop Logic
-        loop_enabled = dca_config.get('loop_enabled', False)
+        required_drop = base_dev * (step_scale ** so_count)
         
-        profit_amount = (bot['investment'] * (pnl_percent / 100))
-        user_data['financials']['total_balance'] += profit_amount
-        user_data['financials']['net_pnl'] += profit_amount
-        user_data['financials']['reserved_capital'] -= bot['investment']
-        
-        # Log Trade
-        user_data['history'].insert(0, {
-            "time": datetime.now().strftime("%H:%M:%S"),
-            "symbol": bot['symbol'],
-            "type": "Take Profit",
-            "price": current_price,
-            "pnl": f"+{pnl_percent:.2f}%"
-        })
-        
-        logging.info(f"TAKE PROFIT: {bot['symbol']} closed with {pnl_percent}% (User: {user_email})")
-
-        if loop_enabled:
-            # RESTART CYCLE
-            logging.info(f"LOOP TRIGGERED: Restarting {bot['symbol']} for {user_email}")
-            base_order = dca_config.get('base_order', bot['investment']) # Try to find original base, else use current (buggy? No, investment grows)
-            # Correct logic: investment resets to base_order.
-            # We need to know the original base order. It's in dca_config['base_order'].
+        if so_count < max_so and pnl_percent < -required_drop:
+            logging.info(f"DCA Trigger: Safety Order {so_count + 1} for {bot['symbol']} (User: {user_email})")
+            bot['safety_orders_filled'] += 1
             
-            bot['status'] = 'running'
-            bot['investment'] = dca_config.get('base_order', 20.0)
-            bot['entry_price'] = current_price # Re-enter at current market price
-            bot['safety_orders_filled'] = 0
-            bot['start_time'] = datetime.now().isoformat()
+            so_base_size = dca_config.get('safety_order', 0)
+            vol_scale = dca_config.get('volume_scale', 1.5)
             
-            # Reserve capital again
-            user_data['financials']['reserved_capital'] += bot['investment']
+            so_volume = so_base_size * (vol_scale ** so_count)
             
+            bot['investment'] += so_volume
+            user_data['financials']['reserved_capital'] += so_volume
+            
+            current_coins = (bot['investment'] - so_volume) / entry_price
+            new_coins = so_volume / current_price
+            bot['entry_price'] = bot['investment'] / (current_coins + new_coins)
+
+            # Log Trade
             user_data['history'].insert(0, {
                 "time": datetime.now().strftime("%H:%M:%S"),
                 "symbol": bot['symbol'],
-                "type": "Loop Restart",
-                "price": current_price,
-                "pnl": "0.00%"
-            })
-        else:
-            bot['status'] = 'completed'
-
-    # 4. Stop Loss Logic (Simpler for now)
-    if dca_config.get('stop_loss_enabled'):
-        sl_target = dca_config.get('stop_loss', 5.0)
-        if pnl_percent <= -sl_target:
-             bot['status'] = 'stopped_loss'
-             loss_amount = (bot['investment'] * (pnl_percent / 100))
-             user_data['financials']['total_balance'] += loss_amount
-             user_data['financials']['net_pnl'] += loss_amount
-             user_data['financials']['reserved_capital'] -= bot['investment']
-             
-             user_data['history'].insert(0, {
-                "time": datetime.now().strftime("%H:%M:%S"),
-                "symbol": bot['symbol'],
-                "type": "Stop Loss",
+                "type": f"DCA Buy #{so_count + 1}",
                 "price": current_price,
                 "pnl": f"{pnl_percent:.2f}%"
             })
+            if len(user_data['history']) > 50: user_data['history'].pop()
+
+        # 3. Take Profit Logic
+        tp_target = dca_config.get('take_profit', 1.5)
+        if pnl_percent >= tp_target:
+            # Check Loop Logic
+            loop_enabled = dca_config.get('loop_enabled', False)
+            
+            profit_amount = (bot['investment'] * (pnl_percent / 100))
+            user_data['financials']['total_balance'] += profit_amount
+            user_data['financials']['net_pnl'] += profit_amount
+            user_data['financials']['reserved_capital'] -= bot['investment']
+            
+            # Log Trade
+            user_data['history'].insert(0, {
+                "time": datetime.now().strftime("%H:%M:%S"),
+                "symbol": bot['symbol'],
+                "type": "Take Profit",
+                "price": current_price,
+                "pnl": f"+{pnl_percent:.2f}%"
+            })
+            
+            logging.info(f"TAKE PROFIT: {bot['symbol']} closed with {pnl_percent}% (User: {user_email})")
+
+            if loop_enabled:
+                # RESTART CYCLE
+                logging.info(f"LOOP TRIGGERED: Restarting {bot['symbol']} for {user_email}")
+                
+                bot['status'] = 'running'
+                bot['investment'] = dca_config.get('base_order', 20.0)
+                bot['entry_price'] = current_price # Re-enter at current market price
+                bot['safety_orders_filled'] = 0
+                bot['start_time'] = datetime.now().isoformat()
+                
+                # Reserve capital again
+                user_data['financials']['reserved_capital'] += bot['investment']
+                
+                user_data['history'].insert(0, {
+                    "time": datetime.now().strftime("%H:%M:%S"),
+                    "symbol": bot['symbol'],
+                    "type": "Loop Restart",
+                    "price": current_price,
+                    "pnl": "0.00%"
+                })
+            else:
+                bot['status'] = 'completed'
+
+        # 4. Stop Loss Logic (Simpler for now)
+        if dca_config.get('stop_loss_enabled'):
+            sl_target = dca_config.get('stop_loss', 5.0)
+            if pnl_percent <= -sl_target:
+                 bot['status'] = 'stopped_loss'
+                 loss_amount = (bot['investment'] * (pnl_percent / 100))
+                 user_data['financials']['total_balance'] += loss_amount
+                 user_data['financials']['net_pnl'] += loss_amount
+                 user_data['financials']['reserved_capital'] -= bot['investment']
+                 
+                 user_data['history'].insert(0, {
+                    "time": datetime.now().strftime("%H:%M:%S"),
+                    "symbol": bot['symbol'],
+                    "type": "Stop Loss",
+                    "price": current_price,
+                    "pnl": f"{pnl_percent:.2f}%"
+                })
+                 logging.info(f"STOP LOSS: {bot['symbol']} closed with {pnl_percent}% (User: {user_email})")
+
+    except Exception as e:
+        logging.error(f"Error in DCA Logic for {bot.get('symbol', 'UNKNOWN')}: {e}")
 
 # --- Background Scheduler ---
 def update_market_data():
@@ -216,32 +248,37 @@ def update_market_data():
     # Collect all active symbols from ALL users
     targets = {'BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'BNB/USDT', 'XRP/USDT'}
     
-    for email, user_data in DATA['users'].items():
-        bots = user_data.get('bots', {})
-        for b in bots.values():
-            if b['status'] == 'running':
-                sym = b.get('symbol', '')
-                if sym and '-' in sym:
-                    targets.add(sym.replace('-', '/'))
-    
-    # Filter out invalid symbols
-    targets = {t for t in targets if '/' in t and len(t) > 4 and '///' not in t}
-    
     try:
+        for email, user_data in DATA['users'].items():
+            bots = user_data.get('bots', {})
+            for b in bots.values():
+                if b['status'] == 'running':
+                    sym = b.get('symbol', '')
+                    if sym and '-' in sym:
+                        targets.add(sym.replace('-', '/'))
+        
+        # Filter out invalid symbols
+        targets = {t for t in targets if '/' in t and len(t) > 4 and '///' not in t}
+        
         if not targets:
             return
 
-        tickers = exchange.fetch_tickers(list(targets))
+        tickers = {}
+        try:
+            tickers = exchange.fetch_tickers(list(targets))
+            
+            # Update Cache
+            for symbol, ticker in tickers.items():
+                dash_sym = symbol.replace('/', '-')
+                MARKET_CACHE['ticker'][dash_sym] = {
+                    'last': ticker['last'],
+                    'change': ticker.get('percentage', 0.0)
+                }
+            MARKET_CACHE['last_updated'] = time.time()
         
-        # Update Cache
-        for symbol, ticker in tickers.items():
-            dash_sym = symbol.replace('/', '-')
-            MARKET_CACHE['ticker'][dash_sym] = {
-                'last': ticker['last'],
-                'change': ticker.get('percentage', 0.0)
-            }
-        
-        MARKET_CACHE['last_updated'] = time.time()
+        except Exception as e:
+            logging.error(f"Exchange Fetch Error: {e}. Using cached values if available.")
+            # Fallback to cache is automatic if we use MARKET_CACHE below
         
         # Run Logic for ALL Users
         changes = False
@@ -249,22 +286,26 @@ def update_market_data():
             bots = user_data.get('bots', {})
             for b_sym, bot in bots.items():
                 if bot['status'] == 'running':
-                    # Get price
-                    # Handle symbol mismatch safe
-                    ticker_key = b_sym.replace('-', '/')
-                    if ticker_key in tickers:
-                        price = tickers[ticker_key]['last']
+                    # Get price from cache (fetched or old)
+                    ticker_key = b_sym
+                    # Check both formats just in case
+                    if ticker_key not in MARKET_CACHE['ticker']:
+                        ticker_key = b_sym.replace('-', '/')
+                        
+                    if ticker_key in MARKET_CACHE['ticker']:
+                        price = MARKET_CACHE['ticker'][ticker_key]['last']
                         calculate_dca_logic(email, bot, price)
                         changes = True
+                    else:
+                        # Fallback check against fresh tickers if available but not in cache?
+                        # (Unlikely if cache update worked)
+                        pass
         
-        # Hard-Core Persistence: Save every cycle if changes or at least every minute (handled by job freq)
-        # User requested "every minute". We run every 5s. 
-        # We save on changes for safety.
         if changes:
             save_data()
             
     except Exception as e:
-        logging.error(f"Sync Error: {e}")
+        logging.error(f"Global Sync Error: {e}")
 
 def periodic_save():
     """Explicit save every minute as requested."""
@@ -284,18 +325,28 @@ def keep_awake():
             base_url = f"https://{base_url}" # Render URLs are https usually
             
         # Ping a lightweight endpoint
-        target = f"{base_url}/favicon.ico"
+        target = f"{base_url}/health"
         response = requests.get(target, timeout=10)
         logging.info(f"Health check: Keeping the engine awake... (Ping {target} - Status: {response.status_code})")
     except Exception as e:
         logging.warning(f"Health check ping failed: {e}")
 
+# Scheduler Setup
 scheduler = BackgroundScheduler()
-scheduler.add_job(update_market_data, 'interval', seconds=2, max_instances=1) # 2s Refresh
-scheduler.add_job(periodic_save, 'interval', minutes=1) # Hard-Core Persistence
-scheduler.add_job(keep_awake, 'interval', minutes=5) # Prevent Sleep
-scheduler.start()
-logging.info("BACKGROUND SERVICE STARTED: Market Data & Bot Logic running independently.")
+# Prevent multiple instances: only add jobs if we are confident (or just let APScheduler handle it via max_instances)
+# We use max_instances=1 to ensure no overlap of the SAME job.
+scheduler.add_job(update_market_data, 'interval', seconds=5, max_instances=1) # Increased to 5s
+scheduler.add_job(periodic_save, 'interval', minutes=1)
+scheduler.add_job(backup_data, 'interval', hours=24) # Daily backup
+scheduler.add_job(keep_awake, 'interval', minutes=10) # 10 mins
+
+# Check if we should start scheduler (avoid double start in reloader)
+if not app.debug or os.environ.get('WERKZEUG_RUN_MAIN') == 'true':
+    try:
+        scheduler.start()
+        logging.info("BACKGROUND SERVICE STARTED: Market Data & Bot Logic running.")
+    except Exception as e:
+        logging.warning(f"Scheduler start warning: {e}")
 
 # --- Routes ---
 
@@ -303,6 +354,23 @@ logging.info("BACKGROUND SERVICE STARTED: Market Data & Bot Logic running indepe
 @login_required
 def index():
     return render_template('index.html')
+
+@app.route('/health')
+def health_check():
+    """Health check endpoint for keep-awake and monitoring."""
+    active_bots = 0
+    try:
+        for user_data in DATA['users'].values():
+            bots = user_data.get('bots', {})
+            active_bots += len([b for b in bots.values() if b['status'] == 'running'])
+    except:
+        pass
+        
+    return jsonify({
+        "status": "ok",
+        "active_bots": active_bots,
+        "time": datetime.now().isoformat()
+    })
 
 @app.route('/login')
 def login_page():
@@ -443,14 +511,19 @@ def start_strategy():
         if symbol in bots and bots[symbol]['status'] == 'running':
              return jsonify({"status": "error", "message": f"Bot for {symbol} is already active"}), 400
 
-        # Fetch Price
+        # Fetch Price with retry
+        price = 0.0
         try:
             ticker = exchange.fetch_ticker(symbol.replace('-', '/'))
             price = ticker['last']
         except Exception as e:
              logging.error(f"Price fetch failed for {symbol}: {e}")
-             price = 50000.0 # Fallback for simulation
-             # return jsonify({"status": "error", "message": f"Invalid Symbol or Exchange Error: {str(e)}"}), 400
+             # Fallback to cache
+             cached_ticker = MARKET_CACHE['ticker'].get(symbol)
+             if cached_ticker:
+                 price = cached_ticker['last']
+             else:
+                 price = 50000.0 # Ultimate fallback for simulation
 
         new_bot = {
             "symbol": symbol,
@@ -517,10 +590,6 @@ def create_bot():
         base_order = float(data.get('investment', 100))
         dca_config = data.get('dca_config', {})
         
-        # Ensure loop_enabled is captured
-        # The frontend might not send it yet, we need to update frontend.
-        # But if it does, it's in dca_config.
-        
         if symbol in bots and bots[symbol]['status'] == 'running':
              return jsonify({"status": "error", "message": "Bot already running"}), 400
 
@@ -528,7 +597,12 @@ def create_bot():
             ticker = exchange.fetch_ticker(symbol.replace('-', '/'))
             price = ticker['last']
         except:
-             return jsonify({"status": "error", "message": "Invalid Pair"}), 400
+             # Fallback to cache
+             cached_ticker = MARKET_CACHE['ticker'].get(symbol)
+             if cached_ticker:
+                 price = cached_ticker['last']
+             else:
+                 return jsonify({"status": "error", "message": "Invalid Pair (Fetch Failed)"}), 400
 
         new_bot = {
             "symbol": symbol,
@@ -563,11 +637,10 @@ def stop_bot():
     if symbol in bots:
         # Panic Sell or Stop?
         # Simplified: Stop just releases capital (assuming sold at break-even or manual handling)
-        # For Panic Sell (Close at Market), we need separate logic or reuse this.
-        # Let's implement panic logic here if requested, but sticking to stop for now.
         user_data['financials']['reserved_capital'] -= bots[symbol]['investment']
         del bots[symbol]
         save_data()
+        logging.info(f"Bot Stopped: {symbol} for {user_email}")
         return jsonify({"status": "success"})
     return jsonify({"status": "error"}), 404
 
@@ -592,6 +665,7 @@ def panic_sell():
         
         del bots[symbol]
         save_data()
+        logging.info(f"Panic Sell: {symbol} for {user_email}")
         return jsonify({"status": "success"})
     return jsonify({"status": "error"}), 404
 

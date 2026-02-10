@@ -50,6 +50,12 @@ body {
     filter: drop-shadow(0 0 5px var(--accent-cyan));
 }
 
+.header-logo-img {
+    height: 40px;
+    margin-right: 10px;
+    filter: drop-shadow(0 0 8px rgba(3, 218, 198, 0.6)); /* Cyan glow */
+}
+
 .vortex-title-gold {
     font-weight: 900;
     font-size: 1.4rem;
