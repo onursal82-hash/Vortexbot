@@ -11,7 +11,6 @@ async function init() {
     window.switchTab('dashboard');
     
     // Polling
-    setInterval(loadDashboardData, 2000); 
     loadDashboardData(); 
 }
 
@@ -42,6 +41,7 @@ async function loadMarketData() {
 }
 
 // --- Dashboard Logic ---
+let pollInterval = 5000;
 async function loadDashboardData() {
     try {
         const res = await fetch('/api/dashboard?t=' + Date.now());
@@ -50,6 +50,9 @@ async function loadDashboardData() {
             return;
         }
         const data = await res.json();
+        
+        // Update Cache
+        window.lastBots = data.bots || [];
         
         // 1. Update PnL (Vertical Pill)
         const netPnl = parseFloat(data.financials.net_pnl || 0);
@@ -74,9 +77,15 @@ async function loadDashboardData() {
 
         // 4. Update Active Bots (Factory View)
         updateActiveBotsList(data.bots);
+        
+        // Reset interval on success
+        pollInterval = 5000;
 
     } catch(e) {
-        // Silent fail for polling
+        console.warn("Polling failed", e);
+        pollInterval = Math.min(pollInterval * 2, 60000);
+    } finally {
+        setTimeout(loadDashboardData, pollInterval);
     }
 }
 
@@ -303,49 +312,60 @@ window.stopBot = async function(symbol, action) {
 }
 
 // --- Bot Details Modal ---
-window.viewBotDetails = async function(symbol) {
-    // We can fetch fresh details or find in current dashboard data
-    // For simplicity, we'll fetch or use the active list logic if we stored it globally
-    // Let's just fetch dashboard data again or store it in window.lastBots
+window.viewBotDetails = function(symbol) {
+    // Use cached data first
+    const bots = window.lastBots || [];
+    const bot = bots.find(b => b.symbol === symbol);
     
-    // Quick hack: iterate through DOM or re-fetch. 
-    // Better: fetch specific bot details
-    try {
-        // Assuming we have the data from the last poll in a global or we can find it
-        // Since we don't store it globally in init, let's just fetch it for accuracy
-        const res = await fetch('/api/dashboard?t=' + Date.now());
-        const data = await res.json();
-        const bot = data.bots.find(b => b.symbol === symbol);
-        
-        if (!bot) return;
+    if (!bot) return;
 
-        const modal = document.getElementById('botDetailsModal');
-        const title = document.getElementById('modalBotSymbol');
-        const content = document.getElementById('modalBotContent');
-        
-        title.innerText = `${bot.symbol} DETAILS`;
-        
-        const config = bot.dca_config || {};
-        
-        content.innerHTML = `
-            <div class="detail-row"><span class="detail-label">Status</span> <span class="detail-val" style="color:${bot.status === 'active' ? '#03DAC6' : 'orange'}">${bot.status}</span></div>
-            <div class="detail-row"><span class="detail-label">PNL</span> <span class="detail-val">${bot.pnl}%</span></div>
-            <div class="detail-row"><span class="detail-label">Investment</span> <span class="detail-val">$${bot.investment}</span></div>
-            <br>
-            <div class="detail-row"><span class="detail-label">Base Order</span> <span class="detail-val">$${config.base_order}</span></div>
-            <div class="detail-row"><span class="detail-label">Safety Order</span> <span class="detail-val">$${config.safety_order}</span></div>
-            <div class="detail-row"><span class="detail-label">Max Safety</span> <span class="detail-val">${config.max_safety_orders}</span></div>
-            <div class="detail-row"><span class="detail-label">Take Profit</span> <span class="detail-val">${config.take_profit}%</span></div>
-            <div class="detail-row"><span class="detail-label">Deviation</span> <span class="detail-val">${config.price_deviation}%</span></div>
-            <div class="detail-row"><span class="detail-label">Vol Scale</span> <span class="detail-val">${config.volume_scale}</span></div>
-            <div class="detail-row"><span class="detail-label">Step Scale</span> <span class="detail-val">${config.step_scale}</span></div>
-            <div class="detail-row"><span class="detail-label">Profit Currency</span> <span class="detail-val">${config.profit_currency || 'quote'}</span></div>
-            <div class="detail-row"><span class="detail-label">Mode</span> <span class="detail-val">${config.continuous_mode ? 'Loop' : 'One-time'}</span></div>
-        `;
-        
-        modal.classList.remove('hidden');
-    } catch(e) {
+    const modal = document.getElementById('botDetailsModal');
+    const title = document.getElementById('modalBotSymbol');
+    const content = document.getElementById('modalBotContent');
+    
+    title.innerText = `${bot.symbol} DETAILS`;
+    
+    const config = bot.dca_config || {};
+    
+    content.innerHTML = `
+        <div class="detail-row"><span class="detail-label">Status</span> <span class="detail-val" style="color:${bot.status === 'active' ? '#03DAC6' : 'orange'}">${bot.status}</span></div>
+        <div class="detail-row"><span class="detail-label">PNL</span> <span class="detail-val">${bot.pnl}%</span></div>
+        <div class="detail-row"><span class="detail-label">Investment</span> <span class="detail-val">$${bot.investment}</span></div>
+        <br>
+        <div class="detail-row"><span class="detail-label">Base Order</span> <span class="detail-val">$${config.base_order}</span></div>
+        <div class="detail-row"><span class="detail-label">Safety Order</span> <span class="detail-val">$${config.safety_order}</span></div>
+        <div class="detail-row"><span class="detail-label">Max Safety</span> <span class="detail-val">${config.max_safety_orders}</span></div>
+        <div class="detail-row"><span class="detail-label">Take Profit</span> <span class="detail-val">${config.take_profit}%</span></div>
+        <div class="detail-row"><span class="detail-label">Deviation</span> <span class="detail-val">${config.price_deviation}%</span></div>
+        <div class="detail-row"><span class="detail-label">Vol Scale</span> <span class="detail-val">${config.volume_scale}</span></div>
+        <div class="detail-row"><span class="detail-label">Step Scale</span> <span class="detail-val">${config.step_scale}</span></div>
+        <div class="detail-row"><span class="detail-label">Profit Currency</span> <span class="detail-val">${config.profit_currency || 'quote'}</span></div>
+        <div class="detail-row"><span class="detail-label">Mode</span> <span class="detail-val">${config.continuous_mode ? 'Loop' : 'One-time'}</span></div>
+    `;
+    
+    modal.classList.remove('hidden');
+}
+
+window.loadHistory = async function() {
+    try {
+        const res = await fetch('/api/history?t=' + Date.now());
+        if(!res.ok) throw new Error("History fetch failed");
+        const history = await res.json();
+        const table = history.map(h => 
+            `<tr>
+                <td>${h.timestamp.replace('T', ' ').split('.')[0]}</td>
+                <td>${h.symbol}</td>
+                <td>${h.event}</td>
+                <td style="color:${h.pnl_percent >= 0 ? 'var(--accent-cyan)' : 'var(--accent-pink)'}">${h.pnl_percent.toFixed(2)}%</td>
+                <td style="color:${h.pnl_usd >= 0 ? 'var(--accent-cyan)' : 'var(--accent-pink)'}">$${h.pnl_usd.toFixed(2)}</td>
+            </tr>`
+        ).join("");
+        document.getElementById("history-body").innerHTML = table;
+        document.getElementById("historyModal").classList.add("open");
+        document.getElementById("historyModal").style.display = 'flex'; // Ensure flex for centering
+    } catch (e) {
         console.error(e);
+        alert("Failed to load history.");
     }
 }
 

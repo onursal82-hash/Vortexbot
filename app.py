@@ -50,7 +50,9 @@ exchange = ccxt.okx({
 
 # --- Constants ---
 STORAGE_FILE = 'bot_storage.json'
+HISTORY_FILE = 'bot_history.json'
 DATA_LOCK = threading.Lock()
+HISTORY_LOCK = threading.Lock()
 GLOBAL_USER_ID = 'global_shared_workspace'
 
 # --- Global Data Store ---
@@ -124,6 +126,32 @@ def backup_data():
     except Exception as e:
         logging.error(f"Backup failed: {e}")
 
+def save_trade_history(entry):
+    """
+    Appends a trade event to the persistent history file safely.
+    """
+    with HISTORY_LOCK:
+        try:
+            history = []
+            if os.path.exists(HISTORY_FILE):
+                try:
+                    with open(HISTORY_FILE, 'r') as f:
+                        history = json.load(f)
+                except json.JSONDecodeError:
+                    history = []
+            
+            history.append(entry)
+            
+            # Keep only last 1000 entries to prevent infinite growth
+            if len(history) > 1000:
+                history = history[-1000:]
+                
+            with open(HISTORY_FILE, 'w') as f:
+                json.dump(history, f, indent=4)
+                
+        except Exception as e:
+            logging.error(f"Failed to save trade history: {e}")
+
 # --- Auth Helper ---
 def login_required(f):
     @wraps(f)
@@ -192,6 +220,14 @@ def calculate_dca_logic(user_email, bot, current_price):
                 "pnl": f"{pnl_percent:.2f}%"
             })
             if len(user_data['history']) > 50: user_data['history'].pop()
+            
+            save_trade_history({
+                "symbol": bot['symbol'],
+                "timestamp": datetime.now().isoformat(),
+                "event": f"DCA Buy #{so_count + 1}",
+                "pnl_percent": pnl_percent,
+                "pnl_usd": 0.0
+            })
 
         # 3. Take Profit Logic
         tp_target = dca_config.get('take_profit', 1.5)
@@ -211,6 +247,14 @@ def calculate_dca_logic(user_email, bot, current_price):
                 "type": "Take Profit",
                 "price": current_price,
                 "pnl": f"+{pnl_percent:.2f}%"
+            })
+            
+            save_trade_history({
+                "symbol": bot['symbol'],
+                "timestamp": datetime.now().isoformat(),
+                "event": "Take Profit",
+                "pnl_percent": pnl_percent,
+                "pnl_usd": profit_amount
             })
             
             logging.info(f"TAKE PROFIT: {bot['symbol']} closed with {pnl_percent}% (User: {user_email})")
@@ -254,6 +298,14 @@ def calculate_dca_logic(user_email, bot, current_price):
                     "type": "Stop Loss",
                     "price": current_price,
                     "pnl": f"{pnl_percent:.2f}%"
+                })
+                 
+                 save_trade_history({
+                    "symbol": bot['symbol'],
+                    "timestamp": datetime.now().isoformat(),
+                    "event": "Stop Loss",
+                    "pnl_percent": pnl_percent,
+                    "pnl_usd": loss_amount
                 })
                  logging.info(f"STOP LOSS: {bot['symbol']} closed with {pnl_percent}% (User: {user_email})")
 
@@ -489,6 +541,22 @@ def dashboard_data():
         "history": user['history'][:20]
     })
 
+@app.route('/api/history')
+@login_required
+def get_trade_history():
+    with HISTORY_LOCK:
+        try:
+            if os.path.exists(HISTORY_FILE):
+                with open(HISTORY_FILE, 'r') as f:
+                    history = json.load(f)
+                    # Sort by timestamp descending
+                    history.sort(key=lambda x: x['timestamp'], reverse=True)
+                    return jsonify(history[:100])
+        except Exception as e:
+            logging.error(f"Error reading history: {e}")
+            
+    return jsonify([])
+
 @app.route('/api/symbols')
 def get_symbols():
     # Public route, cached
@@ -514,9 +582,6 @@ def get_symbols():
 @login_required
 def start_strategy():
     try:
-        if session.get('user') != ADMIN_EMAIL:
-            return jsonify({"status":"error","message":"Only admin can create bots"}), 403
-
         # MODIFIED: Use Global Workspace
         user_data = DATA['users'][GLOBAL_USER_ID]
         bots = user_data['bots']
@@ -605,9 +670,6 @@ def bot_details(bot_id):
 @login_required
 def create_bot():
     try:
-        if session.get('user') != ADMIN_EMAIL:
-            return jsonify({"status":"error","message":"Only admin can create bots"}), 403
-
         # MODIFIED: Use Global Workspace
         user_data = DATA['users'][GLOBAL_USER_ID]
         bots = user_data['bots']
@@ -701,6 +763,14 @@ def panic_sell():
         user_data['financials']['net_pnl'] += pnl_amount
         user_data['financials']['reserved_capital'] -= bot['investment']
         
+        save_trade_history({
+            "symbol": bot['symbol'],
+            "timestamp": datetime.now().isoformat(),
+            "event": "Panic Sell",
+            "pnl_percent": pnl_percent,
+            "pnl_usd": pnl_amount
+        })
+
         del bots[symbol]
         save_data()
         logging.info(f"Panic Sell: {symbol} for Global Workspace")

@@ -16,6 +16,7 @@
             <img src="/static/assets/brand/vortex-ultra-final.png" alt="Vortex AI" class="header-logo-img">
             <div class="vortex-title-gold">VORTEX DCA TRADING BOT</div>
         </div>
+        <button onclick="loadHistory()" class="history-btn">📜 History</button>
     </header>
 
     <!-- Main Content -->
@@ -202,6 +203,28 @@
             <span class="close-modal" onclick="window.closeBotDetails()">&times;</span>
             <h2 id="modalBotSymbol">BOT DETAILS</h2>
             <div id="modalBotContent"></div>
+        </div>
+    </div>
+
+    <!-- History Modal -->
+    <div id="historyModal" class="modal hidden">
+        <div class="modal-content" style="max-width: 600px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                <h3>Trade History</h3>
+                <button onclick="document.getElementById('historyModal').classList.remove('open'); document.getElementById('historyModal').style.display='none';" style="background:transparent; border:none; color:white; font-size:1.5rem; cursor:pointer;">&times;</button>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Time</th>
+                        <th>Symbol</th>
+                        <th>Event</th>
+                        <th>PnL%</th>
+                        <th>PnL $</th>
+                    </tr>
+                </thead>
+                <tbody id="history-body"></tbody>
+            </table>
         </div>
     </div>
 

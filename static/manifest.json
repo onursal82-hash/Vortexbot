@@ -1,10 +1,11 @@
 {
-  "name": "Vortex AI Trading Bot",
-  "short_name": "Vortex",
+  "name": "Vortex DCA Trading Bot",
+  "short_name": "VortexDCA",
+  "description": "A smart and resilient DCA trading automation system.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0d2b2d",
-  "theme_color": "#0d2b2d",
+  "background_color": "#0a0a0a",
+  "theme_color": "#0a0a0a",
   "orientation": "portrait-primary",
   "icons": [
     {
