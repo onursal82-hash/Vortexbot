@@ -3,4 +3,3 @@ ccxt
 apscheduler
 gunicorn
 requests
-flask-cors

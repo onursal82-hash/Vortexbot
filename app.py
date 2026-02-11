@@ -27,6 +27,7 @@ logging.basicConfig(level=logging.INFO,
                     handlers=[log_handler, logging.StreamHandler()])
 
 app = Flask(__name__)
+CORS(app, origins=["https://vortex-ui.onrender.com"])
 app.secret_key = os.getenv('FLASK_SECRET_KEY', secrets.token_hex(32))
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
 
@@ -670,6 +671,7 @@ def bot_details(bot_id):
 @login_required
 def create_bot():
     try:
+        app.logger.info(f"🛰️  Received bot create request: {request.json}")
         # MODIFIED: Use Global Workspace
         user_data = DATA['users'][GLOBAL_USER_ID]
         bots = user_data['bots']

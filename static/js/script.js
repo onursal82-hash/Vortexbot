@@ -2,6 +2,8 @@ document.addEventListener('DOMContentLoaded', () => {
     init();
 });
 
+const API_BASE = "";
+
 let marketData = [];
 window.allPairs = [];
 
@@ -32,7 +34,7 @@ window.switchTab = function(tabName) {
 // --- Data Fetching ---
 async function loadMarketData() {
     try {
-        const res = await fetch('/api/symbols?t=' + Date.now());
+        const res = await fetch(`${API_BASE}/api/symbols?t=` + Date.now());
         if (!res.ok) throw new Error('Market Data Error');
         window.allPairs = await res.json();
     } catch(e) { 
@@ -44,7 +46,7 @@ async function loadMarketData() {
 let pollInterval = 5000;
 async function loadDashboardData() {
     try {
-        const res = await fetch('/api/dashboard?t=' + Date.now());
+        const res = await fetch(`${API_BASE}/api/dashboard?t=` + Date.now());
         if (res.status === 401) {
             window.location.href = '/login';
             return;
@@ -232,7 +234,7 @@ function buildBotPayload(symbol) {
 
 async function sendBotCreateRequest(payload) {
     try {
-        const res = await fetch('/api/create_bot', {
+        const res = await fetch(`${API_BASE}/api/create_bot`, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify(payload)
@@ -292,7 +294,7 @@ window.launchFactoryBot = window.startVortexStrategy;
 window.stopBot = async function(symbol, action) {
     if (!confirm(`Confirm ${action.toUpperCase()} for ${symbol}?`)) return;
     
-    const endpoint = action === 'panic' ? '/api/panic_sell' : '/api/stop_bot';
+    const endpoint = action === 'panic' ? `${API_BASE}/api/panic_sell` : `${API_BASE}/api/stop_bot`;
     try {
         const res = await fetch(endpoint, {
             method: 'POST',
@@ -348,7 +350,7 @@ window.viewBotDetails = function(symbol) {
 
 window.loadHistory = async function() {
     try {
-        const res = await fetch('/api/history?t=' + Date.now());
+        const res = await fetch(`${API_BASE}/api/history?t=` + Date.now());
         if(!res.ok) throw new Error("History fetch failed");
         const history = await res.json();
         const table = history.map(h => 
