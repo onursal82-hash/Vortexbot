@@ -31,7 +31,7 @@ body {
 
 /* --- Header --- */
 .nav-header {
-    height: 60px;
+    height: 64px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -51,9 +51,10 @@ body {
 }
 
 .header-logo-img {
-    height: 40px;
-    margin-right: 10px;
-    filter: drop-shadow(0 0 8px rgba(3, 218, 198, 0.6)); /* Cyan glow */
+    height: 48px;
+    margin-right: 12px;
+    object-fit: contain;
+    filter: drop-shadow(0 0 8px rgba(3,218,198,0.35)); 
 }
 
 .vortex-title-gold {

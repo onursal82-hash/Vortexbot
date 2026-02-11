@@ -34,6 +34,7 @@ app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
 API_KEY = os.getenv('OKX_API_KEY', '').strip()
 SECRET_KEY = os.getenv('OKX_SECRET_KEY', '').strip()
 PASSPHRASE = os.getenv('OKX_PASSPHRASE', '').strip()
+ADMIN_EMAIL = os.getenv('ADMIN_EMAIL', 'your@email.com')
 
 # --- Exchange Setup (CCXT) ---
 # In a real multi-user app, API keys should be per-user. 
@@ -159,7 +160,7 @@ def calculate_dca_logic(user_email, bot, current_price):
         
         # 2. Safety Order Logic
         so_count = bot.get('safety_orders_filled', 0)
-        max_so = dca_config.get('max_safety_orders', 5)
+        max_so = dca_config.get('max_safety_orders', 15)
         
         base_dev = dca_config.get('price_deviation', 1.5)
         step_scale = dca_config.get('step_scale', 1.5)
@@ -513,6 +514,9 @@ def get_symbols():
 @login_required
 def start_strategy():
     try:
+        if session.get('user') != ADMIN_EMAIL:
+            return jsonify({"status":"error","message":"Only admin can create bots"}), 403
+
         # MODIFIED: Use Global Workspace
         user_data = DATA['users'][GLOBAL_USER_ID]
         bots = user_data['bots']
@@ -544,6 +548,20 @@ def start_strategy():
              else:
                  price = 50000.0 # Ultimate fallback for simulation
 
+        # Set DCA Config defaults
+        dca_config = {
+            "base_order": float(data.get('amount', 20.0)),
+            "safety_order": 40.0,
+            "max_safety_orders": 15,
+            "volume_scale": 1.05,
+            "step_scale": 1.0,
+            "price_deviation": 2.0,
+            "take_profit": 1.5,
+            "stop_action": "close",
+            "stop_loss_enabled": False,
+            "loop_enabled": True # Default to Loop for Vortex
+        }
+        
         new_bot = {
             "symbol": symbol,
             "status": "running",
@@ -551,18 +569,7 @@ def start_strategy():
             "current_price": price,
             "investment": float(data.get('amount', 20.0)), # Allow frontend to override
             "pnl": 0.0,
-            "dca_config": {
-                "base_order": float(data.get('amount', 20.0)),
-                "safety_order": 40.0,
-                "max_safety_orders": 15,
-                "volume_scale": 1.05,
-                "step_scale": 1.0,
-                "price_deviation": 2.0,
-                "take_profit": 1.5,
-                "stop_action": "close",
-                "stop_loss_enabled": False,
-                "loop_enabled": True # Default to Loop for Vortex
-            },
+            "dca_config": dca_config,
             "safety_orders_filled": 0,
             "start_time": datetime.now().isoformat()
         }
@@ -598,6 +605,9 @@ def bot_details(bot_id):
 @login_required
 def create_bot():
     try:
+        if session.get('user') != ADMIN_EMAIL:
+            return jsonify({"status":"error","message":"Only admin can create bots"}), 403
+
         # MODIFIED: Use Global Workspace
         user_data = DATA['users'][GLOBAL_USER_ID]
         bots = user_data['bots']
@@ -608,6 +618,15 @@ def create_bot():
         
         base_order = float(data.get('investment', 100))
         dca_config = data.get('dca_config', {})
+        
+        # Apply defaults to DCA config
+        dca_config.setdefault('base_order', base_order)
+        dca_config.setdefault('safety_order', 40.0)
+        dca_config.setdefault('max_safety_orders', 15)
+        dca_config.setdefault('volume_scale', 1.05)
+        dca_config.setdefault('step_scale', 1.0)
+        dca_config.setdefault('price_deviation', 2.0)
+        dca_config.setdefault('take_profit', 1.5)
         
         if symbol in bots and bots[symbol]['status'] == 'running':
              return jsonify({"status": "error", "message": "Bot already running"}), 400

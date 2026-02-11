@@ -123,6 +123,9 @@ function updateActiveBotsList(bots) {
             uptime = hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`;
         }
 
+        const so_filled = bot.safety_orders_filled ?? 0;
+        const so_max = (bot.dca_config && bot.dca_config.max_safety_orders) || bot.max_safety_orders || 15;
+
         // Add onclick to view details
         // Note: stopPropagation on buttons to prevent triggering modal when clicking buttons
         return `
@@ -135,7 +138,7 @@ function updateActiveBotsList(bots) {
                 <div>Price: <span class="font-mono text-white">$${parseFloat(bot.current_price).toLocaleString()}</span></div>
                 <div>Entry: <span class="font-mono text-white">$${parseFloat(bot.average_entry || 0).toLocaleString()}</span></div>
                 <div>Uptime: <span class="font-mono text-white">${uptime}</span></div>
-                <div>SO: <span style="color:#a084e8; font-weight:bold;">${bot.safety_orders_filled}/${bot.max_safety_orders}</span></div>
+                <div>SO: <span style="color:#a084e8; font-weight:bold;">${so_filled}/${so_max}</span></div>
             </div>
             <div class="op-buttons">
                 <button class="btn-panic" onclick="event.stopPropagation(); window.stopBot('${bot.symbol}', 'panic')">PANIC SELL</button>
