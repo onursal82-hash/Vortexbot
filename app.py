@@ -235,7 +235,11 @@ def calculate_dca_logic(user_email, bot, current_price):
         tp_target = dca_config.get('take_profit', 1.5)
         if pnl_percent >= tp_target:
             # Check Loop Logic
-            loop_enabled = dca_config.get('loop_enabled', False)
+            # User request: "if continuous_mode == 'loop'"
+            c_mode = dca_config.get('continuous_mode', False)
+            l_enabled = dca_config.get('loop_enabled', False)
+            
+            should_loop = (str(c_mode).lower() == 'loop') or (c_mode is True) or (l_enabled is True)
             
             profit_amount = (bot['investment'] * (pnl_percent / 100))
             user_data['financials']['total_balance'] += profit_amount
@@ -261,15 +265,20 @@ def calculate_dca_logic(user_email, bot, current_price):
             
             logging.info(f"TAKE PROFIT: {bot['symbol']} closed with {pnl_percent}% (User: {user_email})")
 
-            if loop_enabled:
+            if should_loop:
                 # RESTART CYCLE
-                logging.info(f"LOOP TRIGGERED: Restarting {bot['symbol']} for {user_email}")
+                logging.info(f"LOOP TRIGGERED: {bot['symbol']} restarting in 2s...")
+                bot['status'] = 'restarting'
                 
-                bot['status'] = 'running'
+                # Small delay to prevent API rate limits
+                time.sleep(2)
+                
                 bot['investment'] = dca_config.get('base_order', 20.0)
                 bot['entry_price'] = current_price # Re-enter at current market price
                 bot['safety_orders_filled'] = 0
+                bot['pnl'] = 0.0
                 bot['start_time'] = datetime.now().isoformat()
+                bot['status'] = 'running'
                 
                 # Reserve capital again
                 user_data['financials']['reserved_capital'] += bot['investment']
