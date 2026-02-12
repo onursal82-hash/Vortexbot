@@ -626,7 +626,8 @@ def start_strategy():
             "take_profit": 1.5,
             "stop_action": "close",
             "stop_loss_enabled": False,
-            "loop_enabled": True # Default to Loop for Vortex
+            "loop_enabled": data.get('loop_enabled', True), # Default to Loop for Vortex, but allow override
+            "continuous_mode": data.get('continuous_mode', False) # Support alias
         }
         
         new_bot = {
