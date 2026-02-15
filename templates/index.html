@@ -3,8 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Vortex DCA</title>
-    <link rel="stylesheet" href="../static/css/style.css">
+    <meta name="theme-color" content="#0a0a0a">
+    <title>Vortex DCA v2</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="manifest" href="/static/manifest.json">
     <!-- Preload fonts if possible, or use system fonts fallback -->
 </head>
 <body>
@@ -119,7 +121,7 @@
                     </div>
                     <div class="config-item">
                         <label>Max Safety</label>
-                        <input type="number" id="fMaxSafety" value="5" class="search-input">
+                        <input type="number" id="fMaxSafety" value="20" class="search-input">
                     </div>
                     <div class="config-item">
                         <label>Vol Scale</label>
@@ -149,8 +151,8 @@
                     <div class="config-item">
                         <label>Mode</label>
                         <select id="fContinuousMode" class="search-input">
+                            <option value="true" selected>Loop</option>
                             <option value="false">One-time</option>
-                            <option value="true">Loop</option>
                         </select>
                     </div>
                     <div class="config-item">

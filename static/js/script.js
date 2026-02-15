@@ -1,5 +1,6 @@
 document.addEventListener('DOMContentLoaded', () => {
     init();
+    registerServiceWorker();
 });
 
 const API_BASE = "";
@@ -14,6 +15,34 @@ async function init() {
     
     // Polling
     loadDashboardData(); 
+}
+
+// --- PWA Service Worker ---
+function registerServiceWorker() {
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/service-worker.js')
+        .then(reg => {
+            console.log('SW Registered:', reg.scope);
+            
+            // Check for updates
+            reg.addEventListener('updatefound', () => {
+                const newWorker = reg.installing;
+                newWorker.addEventListener('statechange', () => {
+                    if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                        console.log('New version available!');
+                        showToast('Update Installed! Reloading...', 'success');
+                    }
+                });
+            });
+        })
+        .catch(err => console.log('SW Registration Failed:', err));
+
+        // Reload when new SW takes control
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+            console.log('Controller changed, reloading page...');
+            window.location.reload();
+        });
+    }
 }
 
 // --- Navigation ---

@@ -890,6 +890,14 @@ def panic_sell():
 def favicon():
     return '', 204
 
+@app.route('/service-worker.js')
+def service_worker():
+    return app.send_static_file('service-worker.js')
+
+@app.route('/manifest.json')
+def manifest():
+    return app.send_static_file('manifest.json')
+
 # --- Initialization ---
 load_data()
 

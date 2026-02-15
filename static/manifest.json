@@ -1,7 +1,7 @@
 {
-  "name": "Vortex DCA Trading Bot",
-  "short_name": "VortexDCA",
-  "description": "A smart and resilient DCA trading automation system.",
+  "name": "Vortex Continuous v2",
+  "short_name": "Vortex v2",
+  "description": "Full Continuous DCA Engine Upgrade - Smart and Resilient Trading Automation.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0a0a0a",
