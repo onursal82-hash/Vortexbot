@@ -68,10 +68,21 @@ async function loadDashboardData() {
         // 2. Update Integrated Coins
         updateIntegratedCoins(data.ticker || {});
 
-        // 3. Update Balance & Bot Count
-        const totalBal = parseFloat(data.financials.total_balance || 0);
+        // 3. Update Balance (Equity) & Bot Count
+        // V2 Update: Show Equity instead of just Balance
+        const equity = parseFloat(data.financials.equity || data.financials.total_balance || 0);
         const balEl = document.getElementById('totalBal');
-        if (balEl) balEl.innerText = '$' + totalBal.toLocaleString(undefined, {minimumFractionDigits: 2});
+        if (balEl) {
+            balEl.innerText = '$' + equity.toLocaleString(undefined, {minimumFractionDigits: 2});
+            // Optional: Add a small label or tooltip indicating this is Equity
+        }
+        
+        // Update Available Balance if element exists (Optional, assuming ID might exist or added later)
+        const availEl = document.getElementById('availBal');
+        if (availEl) {
+             const avail = parseFloat(data.financials.available || 0);
+             availEl.innerText = '$' + avail.toLocaleString(undefined, {minimumFractionDigits: 2});
+        }
 
         const botCount = data.bots ? data.bots.length : 0;
         const countEl = document.getElementById('dashBotCount');

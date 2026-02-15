@@ -189,56 +189,120 @@ def calculate_dca_logic(user_email, bot, current_price):
         bot['pnl'] = round(pnl_percent, 2)
         bot['current_price'] = current_price
         
-        # 2. Safety Order Logic
+        # --- LOG FORMATTING ---
+        # [ETH-USDT] PNL: -3.42% | Entry: 2870.50 | Price: 2772.20 | SO: 5/20
         so_count = bot.get('safety_orders_filled', 0)
-        max_so = dca_config.get('max_safety_orders', 15)
+        max_so = dca_config.get('max_safety_orders', 20)
         
-        base_dev = dca_config.get('price_deviation', 1.5)
-        step_scale = dca_config.get('step_scale', 1.5)
+        log_status = f"[{bot['symbol']}] PNL: {pnl_percent:.2f}% | Entry: {entry_price:.2f} | Price: {current_price:.2f} | SO: {so_count}/{max_so}"
+        # logging.info(log_status) # Too verbose for every tick, maybe debug or specific events
+
+        # 2. Safety Order Logic
+        base_dev = dca_config.get('price_deviation', 2.0)
+        step_scale = dca_config.get('step_scale', 1.0)
+        max_investment = dca_config.get('max_investment', 1000.0)
+        cooldown = dca_config.get('so_cooldown_sec', 60)
         
-        required_drop = base_dev * (step_scale ** so_count)
+        # Calculate Required Drop (Cumulative to fix collapse bug)
+        # Target drop for next SO is sum of all previous steps
+        # current_so_index starts at 0 for first SO
+        # Step 0 (for SO1) = base_dev
+        # Step 1 (for SO2) = base_dev * step_scale
+        # Step 2 (for SO3) = base_dev * step_scale^2
+        
+        required_drop = 0
+        for i in range(so_count + 1):
+             step_size = base_dev * (step_scale ** i)
+             required_drop += step_size
+             
+        # Check Cooldown
+        last_so_time = bot.get('last_so_time', 0)
+        time_since_last = time.time() - last_so_time
+        
+        # Check Investment Cap
+        so_base_size = dca_config.get('safety_order', 40.0)
+        vol_scale = dca_config.get('volume_scale', 1.05)
+        next_so_volume = so_base_size * (vol_scale ** so_count)
+        
+        can_invest = (bot['investment'] + next_so_volume) <= max_investment
         
         if so_count < max_so and pnl_percent < -required_drop:
-            logging.info(f"DCA Trigger: Safety Order {so_count + 1} for {bot['symbol']} (User: {user_email})")
-            bot['safety_orders_filled'] += 1
-            
-            so_base_size = dca_config.get('safety_order', 0)
-            vol_scale = dca_config.get('volume_scale', 1.5)
-            
-            so_volume = so_base_size * (vol_scale ** so_count)
-            
-            bot['investment'] += so_volume
-            user_data['financials']['reserved_capital'] += so_volume
-            
-            current_coins = (bot['investment'] - so_volume) / entry_price
-            new_coins = so_volume / current_price
-            bot['entry_price'] = bot['investment'] / (current_coins + new_coins)
+            if time_since_last >= cooldown and can_invest:
+                logging.info(f"{log_status} -> TRIGGERING SAFETY ORDER")
+                
+                bot['safety_orders_filled'] += 1
+                bot['investment'] += next_so_volume
+                user_data['financials']['reserved_capital'] += next_so_volume
+                
+                # Update Entry Price (Weighted Average)
+                current_coins = (bot['investment'] - next_so_volume) / entry_price
+                new_coins = next_so_volume / current_price
+                bot['entry_price'] = bot['investment'] / (current_coins + new_coins)
+                bot['last_so_time'] = time.time()
 
-            # Log Trade
-            user_data['history'].insert(0, {
-                "time": datetime.now().strftime("%H:%M:%S"),
-                "symbol": bot['symbol'],
-                "type": f"DCA Buy #{so_count + 1}",
-                "price": current_price,
-                "pnl": f"{pnl_percent:.2f}%"
-            })
-            if len(user_data['history']) > 50: user_data['history'].pop()
-            
-            save_trade_history({
-                "symbol": bot['symbol'],
-                "timestamp": datetime.now().isoformat(),
-                "event": f"DCA Buy #{so_count + 1}",
-                "pnl_percent": pnl_percent,
-                "pnl_usd": 0.0
-            })
+                # Log Trade
+                user_data['history'].insert(0, {
+                    "time": datetime.now().strftime("%H:%M:%S"),
+                    "symbol": bot['symbol'],
+                    "type": f"DCA Buy #{so_count + 1}",
+                    "price": current_price,
+                    "pnl": f"{pnl_percent:.2f}%"
+                })
+                if len(user_data['history']) > 50: user_data['history'].pop()
+                
+                save_trade_history({
+                    "symbol": bot['symbol'],
+                    "timestamp": datetime.now().isoformat(),
+                    "event": f"DCA Buy #{so_count + 1}",
+                    "pnl_percent": pnl_percent,
+                    "pnl_usd": 0.0
+                })
+            elif not can_invest:
+                 if so_count < max_so: # Only log if we technically could have bought but hit cap
+                     pass # logging.warning(f"Max investment reached for {bot['symbol']}")
 
-        # 3. Take Profit Logic
+        # 3. Take Profit Logic (Trailing)
         tp_target = dca_config.get('take_profit', 1.5)
-        if pnl_percent >= tp_target:
+        trailing_enabled = dca_config.get('trailing_take_profit', True)
+        trailing_dev = dca_config.get('trailing_deviation', 0.5)
+        min_profit_buffer = dca_config.get('min_profit_buffer', 0.2)
+        
+        should_sell = False
+        
+        # Trailing Logic
+        if trailing_enabled:
+            # Activate trailing if we hit target
+            if pnl_percent >= tp_target:
+                # Initialize high watermark if not set
+                if 'highest_pnl' not in bot:
+                    bot['highest_pnl'] = pnl_percent
+                    logging.info(f"{bot['symbol']} Trailing Activated at {pnl_percent:.2f}%")
+                else:
+                    # Update high watermark
+                    if pnl_percent > bot['highest_pnl']:
+                        bot['highest_pnl'] = pnl_percent
+            
+            # Check for trailing stop hit
+            if 'highest_pnl' in bot:
+                # If price drops below high - deviation
+                if pnl_percent <= (bot['highest_pnl'] - trailing_dev):
+                    # Ensure we are at least in some profit (min buffer)
+                    if pnl_percent >= min_profit_buffer:
+                        should_sell = True
+                        logging.info(f"{bot['symbol']} Trailing Hit: High {bot['highest_pnl']:.2f}% -> Current {pnl_percent:.2f}%")
+                    else:
+                        # Reset trailing if we dropped back to near zero? 
+                        # Or just hold. Let's hold.
+                        pass
+        else:
+            # Standard TP
+            if pnl_percent >= tp_target:
+                should_sell = True
+
+        if should_sell:
             # Check Loop Logic
-            # User request: "if continuous_mode == 'loop'"
-            c_mode = dca_config.get('continuous_mode', False)
-            l_enabled = dca_config.get('loop_enabled', False)
+            c_mode = dca_config.get('continuous_mode', True)
+            l_enabled = dca_config.get('loop_enabled', True)
             
             should_loop = (str(c_mode).lower() == 'loop') or (c_mode is True) or (l_enabled is True)
             
@@ -248,6 +312,9 @@ def calculate_dca_logic(user_email, bot, current_price):
             user_data['financials']['reserved_capital'] -= bot['investment']
             
             # Log Trade
+            log_msg = f"✅ TAKE PROFIT on {bot['symbol']} | +{pnl_percent:.2f}% | Profit: ${profit_amount:.2f}"
+            logging.info(log_msg)
+            
             user_data['history'].insert(0, {
                 "time": datetime.now().strftime("%H:%M:%S"),
                 "symbol": bot['symbol'],
@@ -264,22 +331,20 @@ def calculate_dca_logic(user_email, bot, current_price):
                 "pnl_usd": profit_amount
             })
             
-            logging.info(f"TAKE PROFIT: {bot['symbol']} closed with {pnl_percent}% (User: {user_email})")
-
             if should_loop:
                 # RESTART CYCLE
-                logging.info(f"LOOP TRIGGERED: {bot['symbol']} restarting in 2s...")
+                logging.info(f"🔁 Loop Restart | Entry: {current_price:.2f} | Mode: Continuous")
                 bot['status'] = 'restarting'
                 
-                # Small delay to prevent API rate limits
-                time.sleep(2)
-                
+                # Small delay handled by next cycle usually, but let's reset state
                 bot['investment'] = dca_config.get('base_order', 20.0)
-                bot['entry_price'] = current_price # Re-enter at current market price
+                bot['entry_price'] = current_price 
                 bot['safety_orders_filled'] = 0
                 bot['pnl'] = 0.0
                 bot['start_time'] = datetime.now().isoformat()
                 bot['status'] = 'running'
+                bot['last_so_time'] = 0
+                if 'highest_pnl' in bot: del bot['highest_pnl']
                 
                 # Reserve capital again
                 user_data['financials']['reserved_capital'] += bot['investment']
@@ -293,10 +358,11 @@ def calculate_dca_logic(user_email, bot, current_price):
                 })
             else:
                 bot['status'] = 'completed'
+                if 'highest_pnl' in bot: del bot['highest_pnl']
 
-        # 4. Stop Loss Logic (Simpler for now)
-        if dca_config.get('stop_loss_enabled'):
-            sl_target = dca_config.get('stop_loss', 5.0)
+        # 4. Stop Loss Logic (Dynamic ~14%)
+        if dca_config.get('stop_loss_enabled', True):
+            sl_target = dca_config.get('stop_loss', 14.0)
             if pnl_percent <= -sl_target:
                  bot['status'] = 'stopped_loss'
                  loss_amount = (bot['investment'] * (pnl_percent / 100))
@@ -319,7 +385,7 @@ def calculate_dca_logic(user_email, bot, current_price):
                     "pnl_percent": pnl_percent,
                     "pnl_usd": loss_amount
                 })
-                 logging.info(f"STOP LOSS: {bot['symbol']} closed with {pnl_percent}% (User: {user_email})")
+                 logging.info(f"⛔ STOP LOSS: {bot['symbol']} closed with {pnl_percent:.2f}%")
 
     except Exception as e:
         logging.error(f"Error in DCA Logic for {bot.get('symbol', 'UNKNOWN')}: {e}")
@@ -530,10 +596,20 @@ def dashboard_data():
     # Calculate Unrealized PnL
     unrealized_pnl = sum([b['investment'] * (b['pnl']/100) for b in bots.values() if b['status'] == 'running'])
     
+    total_balance = user['financials']['total_balance']
+    reserved = user['financials']['reserved_capital']
+    
+    # Equity Calculation
+    equity = total_balance + unrealized_pnl
+    available = total_balance - reserved
+    net_pnl = user['financials']['net_pnl'] + unrealized_pnl
+    
     financials = {
-        "total_balance": user['financials']['total_balance'],
-        "reserved": user['financials']['reserved_capital'],
-        "net_pnl": user['financials']['net_pnl'] + unrealized_pnl
+        "total_balance": total_balance,
+        "equity": equity,
+        "reserved": reserved,
+        "available": available,
+        "net_pnl": net_pnl
     }
     
     # Mock Ticker fallback
@@ -629,15 +705,22 @@ def start_strategy():
         dca_config = {
             "base_order": float(data.get('amount', 20.0)),
             "safety_order": 40.0,
-            "max_safety_orders": 15,
+            "max_safety_orders": 20,
             "volume_scale": 1.05,
             "step_scale": 1.0,
             "price_deviation": 2.0,
             "take_profit": 1.5,
-            "stop_action": "close",
-            "stop_loss_enabled": False,
-            "loop_enabled": data.get('loop_enabled', True), # Default to Loop for Vortex, but allow override
-            "continuous_mode": data.get('continuous_mode', False) # Support alias
+            "min_profit_buffer": 0.2,
+            "max_investment": 1000.0,
+            "stop_loss_enabled": True,
+            "stop_loss": 14.0,
+            "so_cooldown_sec": 60,
+            "trailing_take_profit": True,
+            "trailing_deviation": 0.5,
+            "loop_enabled": True,
+            "continuous_mode": True,
+            "price_source": "last",
+            "stop_action": "close"
         }
         
         new_bot = {
@@ -649,7 +732,8 @@ def start_strategy():
             "pnl": 0.0,
             "dca_config": dca_config,
             "safety_orders_filled": 0,
-            "start_time": datetime.now().isoformat()
+            "start_time": datetime.now().isoformat(),
+            "last_so_time": 0
         }
         
         bots[symbol] = new_bot
@@ -698,11 +782,21 @@ def create_bot():
         # Apply defaults to DCA config
         dca_config.setdefault('base_order', base_order)
         dca_config.setdefault('safety_order', 40.0)
-        dca_config.setdefault('max_safety_orders', 15)
+        dca_config.setdefault('max_safety_orders', 20)
         dca_config.setdefault('volume_scale', 1.05)
         dca_config.setdefault('step_scale', 1.0)
         dca_config.setdefault('price_deviation', 2.0)
         dca_config.setdefault('take_profit', 1.5)
+        dca_config.setdefault('min_profit_buffer', 0.2)
+        dca_config.setdefault('max_investment', 1000.0)
+        dca_config.setdefault('stop_loss_enabled', True)
+        dca_config.setdefault('stop_loss', 14.0)
+        dca_config.setdefault('so_cooldown_sec', 60)
+        dca_config.setdefault('trailing_take_profit', True)
+        dca_config.setdefault('trailing_deviation', 0.5)
+        dca_config.setdefault('loop_enabled', True)
+        dca_config.setdefault('continuous_mode', True)
+        dca_config.setdefault('price_source', "last")
         
         if symbol in bots and bots[symbol]['status'] == 'running':
              return jsonify({"status": "error", "message": "Bot already running"}), 400
@@ -727,7 +821,8 @@ def create_bot():
             "pnl": 0.0,
             "dca_config": dca_config,
             "safety_orders_filled": 0,
-            "start_time": datetime.now().isoformat()
+            "start_time": datetime.now().isoformat(),
+            "last_so_time": 0
         }
         
         bots[symbol] = new_bot
