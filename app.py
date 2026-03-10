@@ -265,20 +265,27 @@ def start_strategy():
         if not symbol or symbol == '---':
             return jsonify({"status": "error", "message": "No valid symbol selected."}), 400
             
-        pos = engine.pos_manager.get_position(symbol)
-        if pos.active:
-             return jsonify({"status": "error", "message": f"Bot for {symbol} is already active"}), 400
+        # 1. Validation: Bot already exists?
+        if symbol in engine.pos_manager.positions:
+             return jsonify({"status": "error", "message": f"Bot for {symbol} already exists in active list."}), 400
 
         # Fetch Price
         ticker = exchange.fetch_ticker(symbol.replace('-', '/'))
         price = ticker['last']
 
+        # 2. Initial state setup
+        # The user's prompt suggested positions[symbol] = Position(symbol)
+        # but open_trade handles that via get_position.
+        
         # Initial buy
         amount_usd = float(data.get('amount', 100.0))
         initial_amount = amount_usd / price
         engine.pos_manager.open_trade(symbol, price, initial_amount)
+        pos = engine.pos_manager.get_position(symbol)
         pos.take_profit_price = engine.dca_engine.calculate_tp_price(pos.entry_price)
         engine.profit_engine.log_trade(symbol, "BUY", price, initial_amount)
+        
+        # 3. Save state immediately
         engine.save_state()
         
         return jsonify({"status": "success", "message": "Vortex Strategy Activated"})
@@ -292,10 +299,41 @@ def stop_bot():
     data = request.json
     symbol = data.get('symbol')
     if symbol:
-        engine.pos_manager.close_trade(symbol)
-        engine.save_state()
-        return jsonify({"status": "success"})
-    return jsonify({"status": "error"}), 404
+        # Use new engine delete_bot function
+        if engine.delete_bot(symbol):
+            return jsonify({"status": "success"})
+        else:
+            return jsonify({"status": "error", "message": "Bot not found or already stopped"}), 404
+    return jsonify({"status": "error", "message": "Symbol required"}), 400
+
+@app.route('/api/panic_sell', methods=['POST'])
+@login_required
+def panic_sell():
+    data = request.json
+    symbol = data.get('symbol')
+    if symbol and symbol in engine.pos_manager.positions:
+        pos = engine.pos_manager.get_position(symbol)
+        current_price = MARKET_CACHE['ticker'].get(symbol, {}).get('last', 0.0)
+        
+        if pos.active and current_price > 0:
+            profit = (current_price - pos.entry_price) * pos.amount
+            engine.profit_engine.log_trade(symbol, "PANIC_SELL", current_price, pos.amount, profit)
+            
+            # Use delete_bot to remove from persistence
+            engine.delete_bot(symbol)
+            return jsonify({"status": "success"})
+            
+    return jsonify({"status": "error", "message": "Could not execute panic sell"}), 400
+
+@app.route('/api/reset_all', methods=['POST'])
+@login_required
+def reset_all():
+    """Route for the new global reset function."""
+    try:
+        engine.reset_all_bots()
+        return jsonify({"status": "success", "message": "All bots and stats have been reset."})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 @app.route('/api/bot_details/<bot_id>')
 @login_required

@@ -205,9 +205,10 @@ class TradingEngine:
                 with open(self.config_path, 'r') as f:
                     state = json.load(f)
                 
-                # Load Positions
+                # Load Positions - Only restore active ones
                 for symbol, pos_data in state.get("positions", {}).items():
-                    self.pos_manager.positions[symbol] = Position.from_dict(pos_data)
+                    if pos_data.get('active', False):
+                        self.pos_manager.positions[symbol] = Position.from_dict(pos_data)
                 
                 # Load Profit Data
                 self.profit_engine.load_dict(state.get("profit", {}))
@@ -221,7 +222,33 @@ class TradingEngine:
                 
                 logging.info(f"State loaded from {self.config_path}")
             except Exception as e:
-                logging.error(f"Failed to load state: {e}")
+                logging.error(f"Failed to load state (possible corruption): {e}. Initializing empty state.")
+                # If load fails, we keep the defaults already set in __init__
+                self.save_state() # Create a fresh valid state file
+
+    def delete_bot(self, symbol: str):
+        """Properly remove a bot from state and storage."""
+        if symbol in self.pos_manager.positions:
+            logging.info(f"Deleting bot {symbol} from state.")
+            del self.pos_manager.positions[symbol]
+            self.save_state()
+            return True
+        return False
+
+    def reset_all_bots(self):
+        """Global reset for debugging and testing."""
+        logging.info("Global Reset: Clearing all positions, stats, and logs.")
+        self.pos_manager.positions.clear()
+        self.profit_engine.stats = {
+            "realized_profit": 0.0,
+            "unrealized_profit": 0.0,
+            "total_trades": 0,
+            "closed_trades": 0,
+            "open_positions": 0,
+            "win_rate": 0.0
+        }
+        self.profit_engine.trade_log.clear()
+        self.save_state()
 
     def tick(self, current_prices: Dict[str, float]):
         """Main loop iteration"""
