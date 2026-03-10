@@ -97,25 +97,28 @@ async function loadDashboardData() {
         // 2. Update Integrated Coins
         updateIntegratedCoins(data.ticker || {});
 
-        // 3. Update Balance (Equity) & Bot Count
-        // V2 Update: Show Equity instead of just Balance
-        const equity = parseFloat(data.financials.equity || data.financials.total_balance || 0);
-        const balEl = document.getElementById('totalBal');
-        if (balEl) {
-            balEl.innerText = '$' + equity.toLocaleString(undefined, {minimumFractionDigits: 2});
-            // Optional: Add a small label or tooltip indicating this is Equity
+        // 3. Update Global Stats
+        const financials = data.financials || {};
+        
+        const realizedEl = document.getElementById('realizedProfit');
+        if (realizedEl) {
+            realizedEl.innerText = '$' + (financials.total_realized_profit || 0).toFixed(2);
         }
         
-        // Update Available Balance if element exists (Optional, assuming ID might exist or added later)
-        const availEl = document.getElementById('availBal');
-        if (availEl) {
-             const avail = parseFloat(data.financials.available || 0);
-             availEl.innerText = '$' + avail.toLocaleString(undefined, {minimumFractionDigits: 2});
+        const winRateEl = document.getElementById('winRate');
+        if (winRateEl) {
+            winRateEl.innerText = (financials.win_rate || 0).toFixed(1) + '%';
         }
-
-        const botCount = data.bots ? data.bots.length : 0;
-        const countEl = document.getElementById('dashBotCount');
-        if (countEl) countEl.innerText = botCount;
+        
+        const totalTradesEl = document.getElementById('totalTrades');
+        if (totalTradesEl) {
+            totalTradesEl.innerText = financials.total_trades || 0;
+        }
+        
+        const openPosEl = document.getElementById('openPositions');
+        if (openPosEl) {
+            openPosEl.innerText = financials.open_positions || 0;
+        }
 
         // 4. Update Active Bots (Factory View)
         updateActiveBotsList(data.bots);
