@@ -138,7 +138,9 @@ def index():
 def health_check():
     return jsonify({
         "status": "ok",
-        "active_bots": engine.profit_engine.stats["open_positions"],
+        "active_bots": sum(1 for p in engine.pos_manager.positions.values() if p.active),
+        "positions_loaded": len(engine.pos_manager.positions),
+        "last_save": engine.last_save_time or "Never",
         "time": datetime.now().isoformat()
     })
 

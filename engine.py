@@ -2,6 +2,8 @@ import json
 import os
 import time
 import logging
+import threading
+import shutil
 from datetime import datetime
 from typing import Dict, List, Optional
 
@@ -29,6 +31,11 @@ class Position:
         self.active = False
         self.take_profit_price = 0.0
         self.start_time = None
+
+    def is_valid(self):
+        if not self.active:
+            return True
+        return self.entry_price > 0 and self.amount > 0 and self.total_cost > 0
 
     def to_dict(self):
         return {
@@ -65,6 +72,10 @@ class PositionManager:
         return self.positions[symbol]
 
     def open_trade(self, symbol: str, price: float, amount: float):
+        if price <= 0 or amount <= 0:
+            logging.error(f"Cannot open trade for {symbol} with invalid price ({price}) or amount ({amount})")
+            return
+            
         pos = self.get_position(symbol)
         pos.entry_price = price
         pos.amount = amount
@@ -75,7 +86,16 @@ class PositionManager:
         logging.info(f"Opened trade for {symbol} at {price}")
 
     def update_after_dca(self, symbol: str, price: float, amount: float):
+        if price <= 0 or amount <= 0:
+            logging.error(f"Cannot DCA for {symbol} with invalid price ({price}) or amount ({amount})")
+            return
+            
         pos = self.get_position(symbol)
+        if not pos.active:
+            logging.warning(f"Attempted DCA on inactive position {symbol}. Opening new trade instead.")
+            self.open_trade(symbol, price, amount)
+            return
+
         new_total_cost = pos.total_cost + (price * amount)
         new_total_amount = pos.amount + amount
         pos.entry_price = new_total_cost / new_total_amount
@@ -108,8 +128,9 @@ class ProfitEngine:
         for symbol, pos in positions.items():
             if pos.active and symbol in current_prices:
                 price = current_prices[symbol]
-                profit = (price - pos.entry_price) * pos.amount
-                unrealized += profit
+                if pos.entry_price > 0:
+                    profit = (price - pos.entry_price) * pos.amount
+                    unrealized += profit
                 open_count += 1
         self.stats["unrealized_profit"] = round(unrealized, 4)
         self.stats["open_positions"] = open_count
@@ -133,7 +154,9 @@ class ProfitEngine:
         elif trade_type == "BUY":
             # We don't increment total_trades yet, it's an open position
             pass
-        
+        elif trade_type == "RESET":
+            pass
+
     def to_dict(self):
         return {
             "stats": self.stats,
@@ -155,18 +178,19 @@ class DCAEngine:
         return entry_price * (1 + self.take_profit_pct / 100)
 
     def should_dca(self, pos: Position, current_price: float) -> bool:
-        if not pos.active or pos.dca_count >= self.max_dca:
+        if not pos.active or pos.dca_count >= self.max_dca or pos.entry_price <= 0:
             return False
         
         # Check if current drop matches next DCA level
-        # dca_levels are e.g., [-2, -4, -6, -8, -10]
         drop_pct = ((current_price - pos.entry_price) / pos.entry_price) * 100
-        next_level = self.dca_levels[pos.dca_count]
+        # If we exhausted levels, cap it
+        next_level_idx = min(pos.dca_count, len(self.dca_levels) - 1)
+        next_level = self.dca_levels[next_level_idx]
         
         return drop_pct <= next_level
 
     def should_take_profit(self, pos: Position, current_price: float) -> bool:
-        if not pos.active or pos.entry_price == 0:
+        if not pos.active or pos.entry_price <= 0:
             return False
         return current_price >= pos.take_profit_price
 
@@ -176,55 +200,66 @@ class TradingEngine:
         self.config_path = config_path
         self.pos_manager = PositionManager()
         self.profit_engine = ProfitEngine()
-        # Default DCA config
         self.dca_engine = DCAEngine(dca_levels=[-2, -4, -6, -8, -10], take_profit_pct=1.5, max_dca=5)
         self.max_positions = 10
+        self.last_save_time = None
+        self.state_lock = threading.Lock()
         self.load_state()
 
     def save_state(self):
-        state = {
-            "positions": {s: p.to_dict() for s, p in self.pos_manager.positions.items()},
-            "profit": self.profit_engine.to_dict(),
-            "config": {
-                "dca_levels": self.dca_engine.dca_levels,
-                "take_profit_pct": self.dca_engine.take_profit_pct,
-                "max_dca": self.dca_engine.max_dca,
-                "max_positions": self.max_positions
+        with self.state_lock:
+            state = {
+                "positions": {s: p.to_dict() for s, p in self.pos_manager.positions.items() if p.active},
+                "profit": self.profit_engine.to_dict(),
+                "config": {
+                    "dca_levels": self.dca_engine.dca_levels,
+                    "take_profit_pct": self.dca_engine.take_profit_pct,
+                    "max_dca": self.dca_engine.max_dca,
+                    "max_positions": self.max_positions
+                }
             }
-        }
-        try:
-            with open(self.config_path, 'w') as f:
-                json.dump(state, f, indent=4)
-            # logging.info(f"State saved to {self.config_path}")
-        except Exception as e:
-            logging.error(f"Failed to save state: {e}")
+            try:
+                tmp_file = self.config_path + ".tmp"
+                with open(tmp_file, 'w') as f:
+                    json.dump(state, f, indent=4)
+                shutil.move(tmp_file, self.config_path)
+                self.last_save_time = datetime.now().isoformat()
+            except Exception as e:
+                logging.error(f"Failed to save state: {e}")
 
     def load_state(self):
-        if os.path.exists(self.config_path):
-            try:
-                with open(self.config_path, 'r') as f:
-                    state = json.load(f)
-                
-                # Load Positions - Only restore active ones
-                for symbol, pos_data in state.get("positions", {}).items():
-                    if pos_data.get('active', False):
-                        self.pos_manager.positions[symbol] = Position.from_dict(pos_data)
-                
-                # Load Profit Data
-                self.profit_engine.load_dict(state.get("profit", {}))
-                
-                # Load Config
-                config = state.get("config", {})
-                self.dca_engine.dca_levels = config.get("dca_levels", self.dca_engine.dca_levels)
-                self.dca_engine.take_profit_pct = config.get("take_profit_pct", self.dca_engine.take_profit_pct)
-                self.dca_engine.max_dca = config.get("max_dca", self.dca_engine.max_dca)
-                self.max_positions = config.get("max_positions", self.max_positions)
-                
-                logging.info(f"State loaded from {self.config_path}")
-            except Exception as e:
-                logging.error(f"Failed to load state (possible corruption): {e}. Initializing empty state.")
-                # If load fails, we keep the defaults already set in __init__
-                self.save_state() # Create a fresh valid state file
+        with self.state_lock:
+            if os.path.exists(self.config_path):
+                try:
+                    with open(self.config_path, 'r') as f:
+                        state = json.load(f)
+                    
+                    # Load Positions - Only restore active and valid ones
+                    self.pos_manager.positions.clear()
+                    for symbol, pos_data in state.get("positions", {}).items():
+                        pos = Position.from_dict(pos_data)
+                        if pos.active and pos.is_valid():
+                            self.pos_manager.positions[symbol] = pos
+                        else:
+                            logging.warning(f"Discarded invalid/inactive position for {symbol} during load.")
+                    
+                    # Load Profit Data
+                    self.profit_engine.load_dict(state.get("profit", {}))
+                    
+                    # Load Config
+                    config = state.get("config", {})
+                    self.dca_engine.dca_levels = config.get("dca_levels", self.dca_engine.dca_levels)
+                    self.dca_engine.take_profit_pct = config.get("take_profit_pct", self.dca_engine.take_profit_pct)
+                    self.dca_engine.max_dca = config.get("max_dca", self.dca_engine.max_dca)
+                    self.max_positions = config.get("max_positions", self.max_positions)
+                    
+                    logging.info(f"State loaded from {self.config_path}")
+                except Exception as e:
+                    logging.error(f"Failed to load state (possible corruption): {e}. Initializing empty state.")
+                    self.pos_manager.positions.clear()
+                    # Will save a fresh state on next save
+            else:
+                logging.info(f"No state file found at {self.config_path}. Starting fresh.")
 
     def delete_bot(self, symbol: str):
         """Properly remove a bot from state and storage."""
@@ -248,6 +283,7 @@ class TradingEngine:
             "win_rate": 0.0
         }
         self.profit_engine.trade_log.clear()
+        self.profit_engine.log_trade("SYSTEM", "RESET", 0, 0, 0)
         self.save_state()
 
     def tick(self, current_prices: Dict[str, float]):
@@ -260,8 +296,9 @@ class TradingEngine:
             pos = self.pos_manager.get_position(symbol)
 
             # Emergency Protection
-            if pos.active and pos.entry_price == 0:
-                logging.warning(f"Emergency Reset: {symbol} had active status but 0 entry price.")
+            if pos.active and not pos.is_valid():
+                logging.warning(f"Emergency Reset: {symbol} had active status but invalid state (entry: {pos.entry_price}, amount: {pos.amount}).")
+                self.profit_engine.log_trade(symbol, "RESET", price, pos.amount, 0)
                 pos.reset()
                 continue
 
@@ -271,15 +308,11 @@ class TradingEngine:
                 self.profit_engine.log_trade(symbol, "TAKE_PROFIT", price, pos.amount, profit)
                 self.pos_manager.close_trade(symbol)
                 # After closing, we don't immediately open a new trade for the same symbol 
-                # unless continuous mode is handled by external logic or here.
                 # Let's keep it simple: the next tick will see it as inactive.
                 continue
 
             # b. DCA Check
             if self.dca_engine.should_dca(pos, price):
-                # For simulation, we'll assume a fixed DCA amount (e.g., same as initial or scaled)
-                # Let's use 2x initial order or something configurable.
-                # Requirement says "Initial buy opens position ... execute DCA"
                 dca_amount = pos.amount * 1.0 # Simple 1:1 for now
                 self.pos_manager.update_after_dca(symbol, price, dca_amount)
                 pos.take_profit_price = self.dca_engine.calculate_tp_price(pos.entry_price)
@@ -287,13 +320,9 @@ class TradingEngine:
                 continue
 
             # c. Open New Trade if inactive
-            if not pos.active:
-                if self.profit_engine.stats["open_positions"] < self.max_positions:
-                    # Initial buy
-                    initial_amount = 100.0 / price # Example $100 base order
-                    self.pos_manager.open_trade(symbol, price, initial_amount)
-                    pos.take_profit_price = self.dca_engine.calculate_tp_price(pos.entry_price)
-                    self.profit_engine.log_trade(symbol, "BUY", price, initial_amount)
+            # For this specific bot logic, we only open if explicitly requested,
+            # or if we have continuous mode. For now, it stays inactive until requested.
+            pass
 
-        # 3. Save state
+        # 3. Autosave state on every cycle
         self.save_state()
