@@ -258,6 +258,39 @@ def get_symbols():
     except:
         return jsonify([])
 
+@app.route('/api/create_bot', methods=['POST'])
+@login_required
+def create_bot():
+    try:
+        data = request.get_json()
+        symbol = data.get('symbol')
+        if not symbol or symbol == '---':
+            return jsonify({"status": "error", "message": "No valid symbol selected."}), 400
+            
+        # 1. Validation: Bot already exists?
+        if symbol in engine.pos_manager.positions:
+             return jsonify({"status": "error", "message": f"Bot for {symbol} already exists in active list."}), 400
+
+        # Fetch Price
+        ticker = exchange.fetch_ticker(symbol.replace('-', '/'))
+        price = ticker['last']
+
+        # 2. Initial state setup
+        amount_usd = float(data.get('investment', 100.0))
+        initial_amount = amount_usd / price
+        engine.pos_manager.open_trade(symbol, price, initial_amount)
+        pos = engine.pos_manager.get_position(symbol)
+        pos.take_profit_price = engine.dca_engine.calculate_tp_price(pos.entry_price)
+        engine.profit_engine.log_trade(symbol, "BUY", price, initial_amount)
+        
+        # 3. Save state immediately
+        engine.save_state()
+        
+        return jsonify({"status": "success", "message": "Vortex Strategy Activated"})
+    except Exception as e:
+        logging.error(f"Create Bot Error: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
 @app.route('/api/start_strategy', methods=['POST'])
 @login_required
 def start_strategy():

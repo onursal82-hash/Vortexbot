@@ -1,0 +1,43 @@
+{
+    "positions": {},
+    "profit": {
+        "stats": {
+            "realized_profit": 0.0,
+            "unrealized_profit": 0.0,
+            "total_trades": 0,
+            "closed_trades": 0,
+            "open_positions": 0,
+            "win_rate": 0.0
+        },
+        "trade_log": [
+            {
+                "timestamp": "2026-04-21T20:06:04.559206",
+                "symbol": "SYSTEM",
+                "type": "RESET",
+                "price": 0,
+                "amount": 0,
+                "profit": 0
+            },
+            {
+                "timestamp": "2026-04-21T20:06:05.259676",
+                "symbol": "BTC-USDT",
+                "type": "BUY",
+                "price": 75655.1,
+                "amount": 0.0013217879561325011,
+                "profit": 0.0
+            }
+        ]
+    },
+    "config": {
+        "dca_levels": [
+            -2,
+            -4,
+            -6,
+            -8,
+            -10
+        ],
+        "take_profit_pct": 1.5,
+        "max_dca": 5,
+        "max_positions": 10
+    }
+}
