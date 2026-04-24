@@ -67,11 +67,13 @@ class PositionManager:
         self.positions: Dict[str, Position] = {}
 
     def get_position(self, symbol: str) -> Position:
+        symbol = symbol.upper().replace("/", "-").strip()
         if symbol not in self.positions:
             self.positions[symbol] = Position(symbol)
         return self.positions[symbol]
 
     def open_trade(self, symbol: str, price: float, amount: float):
+        symbol = symbol.upper().replace("/", "-").strip()
         if price <= 0 or amount <= 0:
             logging.error(f"Cannot open trade for {symbol} with invalid price ({price}) or amount ({amount})")
             return
@@ -86,6 +88,7 @@ class PositionManager:
         logging.info(f"Opened trade for {symbol} at {price}")
 
     def update_after_dca(self, symbol: str, price: float, amount: float):
+        symbol = symbol.upper().replace("/", "-").strip()
         if price <= 0 or amount <= 0:
             logging.error(f"Cannot DCA for {symbol} with invalid price ({price}) or amount ({amount})")
             return
@@ -105,6 +108,7 @@ class PositionManager:
         logging.info(f"DCA Buy #{pos.dca_count} for {symbol} at {price}. New entry: {pos.entry_price}")
 
     def close_trade(self, symbol: str):
+        symbol = symbol.upper().replace("/", "-").strip()
         pos = self.get_position(symbol)
         logging.info(f"Closing trade for {symbol}")
         pos.reset()
@@ -203,8 +207,21 @@ class TradingEngine:
         self.dca_engine = DCAEngine(dca_levels=[-2, -4, -6, -8, -10], take_profit_pct=1.5, max_dca=5)
         self.max_positions = 10
         self.last_save_time = None
-        self.state_lock = threading.Lock()
+        self.state_lock = threading.RLock()
         self.load_state()
+
+    def cleanup_ghost_bots(self, save=False):
+        """Removes bots that are inactive, or have invalid amounts/prices."""
+        with self.state_lock:
+            keys_to_delete = []
+            for symbol, p in self.pos_manager.positions.items():
+                if not p.active or p.amount <= 0 or p.entry_price <= 0:
+                    keys_to_delete.append(symbol)
+            for k in keys_to_delete:
+                del self.pos_manager.positions[k]
+            if save and keys_to_delete:
+                self.save_state()
+            return len(keys_to_delete)
 
     def save_state(self):
         with self.state_lock:
@@ -253,6 +270,8 @@ class TradingEngine:
                     self.dca_engine.max_dca = config.get("max_dca", self.dca_engine.max_dca)
                     self.max_positions = config.get("max_positions", self.max_positions)
                     
+                    # Strict Startup Cleanup
+                    self.cleanup_ghost_bots(save=True)
                     logging.info(f"State loaded from {self.config_path}")
                 except Exception as e:
                     logging.error(f"Failed to load state (possible corruption): {e}. Initializing empty state.")
@@ -262,13 +281,24 @@ class TradingEngine:
                 logging.info(f"No state file found at {self.config_path}. Starting fresh.")
 
     def delete_bot(self, symbol: str):
-        """Properly remove a bot from state and storage."""
-        if symbol in self.pos_manager.positions:
-            logging.info(f"Deleting bot {symbol} from state.")
-            del self.pos_manager.positions[symbol]
-            self.save_state()
-            return True
-        return False
+        """Properly remove a bot from state, logs, and storage."""
+        symbol = symbol.upper().replace("/", "-").strip()
+        with self.state_lock:
+            deleted = False
+            if symbol in self.pos_manager.positions:
+                logging.info(f"Deleting bot {symbol} from state.")
+                del self.pos_manager.positions[symbol]
+                deleted = True
+            
+            # Remove from trade logs to fully wipe ghost data
+            original_len = len(self.profit_engine.trade_log)
+            self.profit_engine.trade_log = [log for log in self.profit_engine.trade_log if log.get('symbol') != symbol]
+            if len(self.profit_engine.trade_log) < original_len:
+                deleted = True
+            
+            if deleted:
+                self.save_state()
+            return deleted
 
     def reset_all_bots(self):
         """Global reset for debugging and testing."""

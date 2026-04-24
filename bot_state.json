@@ -1,17 +1,28 @@
 {
-    "positions": {},
+    "positions": {
+        "BTC-USDT": {
+            "symbol": "BTC-USDT",
+            "entry_price": 78500.0,
+            "amount": 0.0012738853503184713,
+            "total_cost": 100.0,
+            "dca_count": 0,
+            "active": true,
+            "take_profit_price": 79677.49999999999,
+            "start_time": "2026-04-23T18:34:56.363689"
+        }
+    },
     "profit": {
         "stats": {
             "realized_profit": 0.0,
-            "unrealized_profit": 0.0,
-            "total_trades": 0,
-            "closed_trades": 0,
-            "open_positions": 0,
-            "win_rate": 0.0
+            "unrealized_profit": -0.9503,
+            "total_trades": 1,
+            "closed_trades": 1,
+            "open_positions": 1,
+            "win_rate": 100.0
         },
         "trade_log": [
             {
-                "timestamp": "2026-04-21T20:06:04.559206",
+                "timestamp": "2026-04-23T18:34:48.621556",
                 "symbol": "SYSTEM",
                 "type": "RESET",
                 "price": 0,
@@ -19,11 +30,11 @@
                 "profit": 0
             },
             {
-                "timestamp": "2026-04-21T20:06:05.259676",
+                "timestamp": "2026-04-23T18:34:56.366752",
                 "symbol": "BTC-USDT",
                 "type": "BUY",
-                "price": 75655.1,
-                "amount": 0.0013217879561325011,
+                "price": 78500.0,
+                "amount": 0.0012738853503184713,
                 "profit": 0.0
             }
         ]

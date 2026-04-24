@@ -267,9 +267,17 @@ def create_bot():
         if not symbol or symbol == '---':
             return jsonify({"status": "error", "message": "No valid symbol selected."}), 400
             
-        # 1. Validation: Bot already exists?
-        if symbol in engine.pos_manager.positions:
-             return jsonify({"status": "error", "message": f"Bot for {symbol} already exists in active list."}), 400
+        symbol = symbol.upper().replace("/", "-").strip()
+            
+        # 1. Validation: Bot already exists AND is active?
+        pos = engine.pos_manager.positions.get(symbol)
+        if pos:
+             if pos.active and pos.amount > 0 and pos.entry_price > 0:
+                 return jsonify({"status": "error", "message": f"Bot for {symbol} already exists in active list."}), 400
+             else:
+                 # stale ghost bot record
+                 del engine.pos_manager.positions[symbol]
+                 engine.save_state()
 
         # Fetch Price
         ticker = exchange.fetch_ticker(symbol.replace('-', '/'))
@@ -279,6 +287,8 @@ def create_bot():
         amount_usd = float(data.get('investment', 100.0))
         initial_amount = amount_usd / price
         engine.pos_manager.open_trade(symbol, price, initial_amount)
+        
+        # Reload pos reference to set config
         pos = engine.pos_manager.get_position(symbol)
         pos.take_profit_price = engine.dca_engine.calculate_tp_price(pos.entry_price)
         engine.profit_engine.log_trade(symbol, "BUY", price, initial_amount)
@@ -300,22 +310,28 @@ def start_strategy():
         if not symbol or symbol == '---':
             return jsonify({"status": "error", "message": "No valid symbol selected."}), 400
             
-        # 1. Validation: Bot already exists?
-        if symbol in engine.pos_manager.positions:
-             return jsonify({"status": "error", "message": f"Bot for {symbol} already exists in active list."}), 400
+        symbol = symbol.upper().replace("/", "-").strip()
+            
+        # 1. Validation: Bot already exists AND is active?
+        pos = engine.pos_manager.positions.get(symbol)
+        if pos:
+             if pos.active and pos.amount > 0 and pos.entry_price > 0:
+                 return jsonify({"status": "error", "message": f"Bot for {symbol} already exists in active list."}), 400
+             else:
+                 # stale ghost bot record
+                 del engine.pos_manager.positions[symbol]
+                 engine.save_state()
 
         # Fetch Price
         ticker = exchange.fetch_ticker(symbol.replace('-', '/'))
         price = ticker['last']
 
         # 2. Initial state setup
-        # The user's prompt suggested positions[symbol] = Position(symbol)
-        # but open_trade handles that via get_position.
-        
-        # Initial buy
         amount_usd = float(data.get('amount', 100.0))
         initial_amount = amount_usd / price
         engine.pos_manager.open_trade(symbol, price, initial_amount)
+        
+        # Reload pos reference
         pos = engine.pos_manager.get_position(symbol)
         pos.take_profit_price = engine.dca_engine.calculate_tp_price(pos.entry_price)
         engine.profit_engine.log_trade(symbol, "BUY", price, initial_amount)
@@ -328,12 +344,28 @@ def start_strategy():
         logging.error(f"Start Strategy Error: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
+@app.route('/api/cleanup_bots', methods=['POST'])
+@login_required
+def cleanup_bots():
+    """Manual cleanup endpoint to remove all ghost/stale bots."""
+    try:
+        cleaned_count = engine.cleanup_ghost_bots(save=True)
+        return jsonify({
+            "status": "success", 
+            "message": f"Cleaned up {cleaned_count} inactive/stale bots."
+        })
+    except Exception as e:
+        logging.error(f"Cleanup Error: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
 @app.route('/api/stop_bot', methods=['POST'])
 @login_required
 def stop_bot():
     data = request.json
     symbol = data.get('symbol')
     if symbol:
+        symbol = symbol.upper().replace("/", "-").strip()
         # Use new engine delete_bot function
         if engine.delete_bot(symbol):
             return jsonify({"status": "success"})
@@ -346,19 +378,35 @@ def stop_bot():
 def panic_sell():
     data = request.json
     symbol = data.get('symbol')
-    if symbol and symbol in engine.pos_manager.positions:
-        pos = engine.pos_manager.get_position(symbol)
-        current_price = MARKET_CACHE['ticker'].get(symbol, {}).get('last', 0.0)
-        
-        if pos.active and current_price > 0:
-            profit = (current_price - pos.entry_price) * pos.amount
-            engine.profit_engine.log_trade(symbol, "PANIC_SELL", current_price, pos.amount, profit)
+    if symbol:
+        symbol = symbol.upper().replace("/", "-").strip()
+        if symbol in engine.pos_manager.positions:
+            pos = engine.pos_manager.get_position(symbol)
+            current_price = MARKET_CACHE['ticker'].get(symbol, {}).get('last', 0.0)
             
-            # Use delete_bot to remove from persistence
-            engine.delete_bot(symbol)
-            return jsonify({"status": "success"})
-            
-    return jsonify({"status": "error", "message": "Could not execute panic sell"}), 400
+            if pos.active and current_price > 0:
+                profit = (current_price - pos.entry_price) * pos.amount
+                engine.profit_engine.log_trade(symbol, "PANIC_SELL", current_price, pos.amount, profit)
+                
+                # Use delete_bot to remove from persistence
+                engine.delete_bot(symbol)
+                return jsonify({"status": "success"})
+                
+        return jsonify({"status": "error", "message": "Could not execute panic sell"}), 400
+    return jsonify({"status": "error", "message": "Symbol required"}), 400
+
+@app.route('/api/debug_positions', methods=['GET'])
+@login_required
+def debug_positions():
+    """Return raw positions data to help detect ghost bots."""
+    raw_positions = {}
+    for sym, pos in engine.pos_manager.positions.items():
+        raw_positions[sym] = {
+            "active": pos.active,
+            "amount": pos.amount,
+            "entry_price": pos.entry_price
+        }
+    return jsonify(raw_positions)
 
 @app.route('/api/reset_all', methods=['POST'])
 @login_required
