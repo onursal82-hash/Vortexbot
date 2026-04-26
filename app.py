@@ -290,6 +290,12 @@ def create_bot():
         
         # Reload pos reference to set config
         pos = engine.pos_manager.get_position(symbol)
+        
+        # Handle custom configs if provided from frontend
+        if 'dca_config' in data and isinstance(data['dca_config'], dict):
+            for k, v in data['dca_config'].items():
+                pos.config[k] = v
+                
         pos.take_profit_price = engine.dca_engine.calculate_tp_price(pos.entry_price)
         engine.profit_engine.log_trade(symbol, "BUY", price, initial_amount)
         
@@ -333,6 +339,12 @@ def start_strategy():
         
         # Reload pos reference
         pos = engine.pos_manager.get_position(symbol)
+        
+        # Handle custom configs if provided from frontend
+        if 'dca_config' in data and isinstance(data['dca_config'], dict):
+            for k, v in data['dca_config'].items():
+                pos.config[k] = v
+                
         pos.take_profit_price = engine.dca_engine.calculate_tp_price(pos.entry_price)
         engine.profit_engine.log_trade(symbol, "BUY", price, initial_amount)
         
@@ -422,11 +434,12 @@ def reset_all():
 @login_required
 def bot_details(bot_id):
     # bot_id is the symbol
+    bot_id = bot_id.upper().replace("/", "-").strip()
     pos = engine.pos_manager.get_position(bot_id)
     if not pos.active:
         return "Bot not found", 404
         
-    # Mock some data for the template if needed
+    # Return actual configuration values from position config
     bot_data = {
         "symbol": pos.symbol,
         "status": "running" if pos.active else "stopped",
@@ -434,16 +447,7 @@ def bot_details(bot_id):
         "current_price": MARKET_CACHE['ticker'].get(bot_id, {}).get('last', 0.0),
         "investment": pos.total_cost,
         "pnl": ((MARKET_CACHE['ticker'].get(bot_id, {}).get('last', 0.0) - pos.entry_price) / pos.entry_price * 100) if pos.entry_price > 0 else 0.0,
-        "dca_config": {
-            "base_order": 20.0,
-            "safety_order": 40.0,
-            "max_safety_orders": engine.dca_engine.max_dca,
-            "take_profit": engine.dca_engine.take_profit_pct,
-            "price_deviation": 2.0,
-            "volume_scale": 1.05,
-            "step_scale": 1.0,
-            "loop_enabled": True
-        }
+        "dca_config": pos.config
     }
     
     # Filter logs for this bot
