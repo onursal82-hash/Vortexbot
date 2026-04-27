@@ -9,6 +9,7 @@ import ccxt
 import secrets
 import threading
 import shutil
+import traceback
 from functools import wraps
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask import Flask, render_template, jsonify, request, session, redirect, url_for
@@ -129,6 +130,30 @@ if not app.debug or os.environ.get('WERKZEUG_RUN_MAIN') == 'true':
 
 # --- Routes ---
 
+@app.before_request
+def log_request_info():
+    if request.path.startswith('/api/'):
+        # Just to have some payload logged if present
+        payload = request.get_json(silent=True) if request.is_json else None
+        logging.info(f"API Request: {request.method} {request.path} | Payload: {payload}")
+
+@app.after_request
+def log_response_info(response):
+    if request.path.startswith('/api/'):
+        # For JSON responses, we can log the response status and content snippet
+        try:
+            if response.is_json:
+                res_data = response.get_json()
+                # Don't log full history/symbols output as it's too large
+                if request.path in ['/api/history', '/api/symbols', '/api/dashboard']:
+                    snippet = f"<Data omitted for {request.path}>"
+                else:
+                    snippet = res_data
+                logging.info(f"API Response: {request.method} {request.path} | Status: {response.status_code} | Body: {snippet}")
+        except:
+            pass
+    return response
+
 @app.route('/')
 @login_required
 def index():
@@ -237,9 +262,29 @@ def dashboard_data():
 @app.route('/api/history')
 @login_required
 def get_trade_history():
-    history = list(engine.profit_engine.trade_log)
-    history.sort(key=lambda x: x['timestamp'], reverse=True)
-    return jsonify(history[:100])
+    try:
+        history = list(engine.profit_engine.trade_log)
+        history.sort(key=lambda x: x.get('timestamp', ''), reverse=True)
+        formatted = []
+        for h in history[:100]:
+            pnl_usd = h.get('profit', 0.0)
+            price = h.get('price', 0.0)
+            amount = h.get('amount', 0.0)
+            cost = price * amount if price and amount else 0.0
+            pnl_pct = (pnl_usd / cost * 100) if cost > 0 else 0.0
+            formatted.append({
+                "timestamp": h.get('timestamp', ''),
+                "symbol": h.get('symbol', ''),
+                "event": h.get('type', ''),
+                "price": price,
+                "amount": amount,
+                "pnl_usd": pnl_usd,
+                "pnl_percent": pnl_pct
+            })
+        return jsonify(formatted)
+    except Exception as e:
+        logging.error(f"History Error: {e}\n{traceback.format_exc()}")
+        return jsonify([])
 
 @app.route('/api/symbols')
 def get_symbols():
@@ -262,7 +307,7 @@ def get_symbols():
 @login_required
 def create_bot():
     try:
-        data = request.get_json()
+        data = request.get_json(silent=True) or {}
         symbol = data.get('symbol')
         if not symbol or symbol == '---':
             return jsonify({"status": "error", "message": "No valid symbol selected."}), 400
@@ -280,11 +325,18 @@ def create_bot():
                  engine.save_state()
 
         # Fetch Price
-        ticker = exchange.fetch_ticker(symbol.replace('-', '/'))
-        price = ticker['last']
+        try:
+            ticker = exchange.fetch_ticker(symbol.replace('-', '/'))
+            price = ticker['last']
+        except Exception as e:
+            return jsonify({"status": "error", "message": f"Could not fetch price for {symbol}"}), 400
 
         # 2. Initial state setup
-        amount_usd = float(data.get('investment', 100.0))
+        try:
+            amount_usd = float(data.get('investment') or 100.0)
+        except (ValueError, TypeError):
+            amount_usd = 100.0
+            
         initial_amount = amount_usd / price
         engine.pos_manager.open_trade(symbol, price, initial_amount)
         
@@ -296,7 +348,7 @@ def create_bot():
             for k, v in data['dca_config'].items():
                 pos.config[k] = v
                 
-        pos.take_profit_price = engine.dca_engine.calculate_tp_price(pos.entry_price)
+        pos.take_profit_price = engine.dca_engine.calculate_tp_price(pos)
         engine.profit_engine.log_trade(symbol, "BUY", price, initial_amount)
         
         # 3. Save state immediately
@@ -304,14 +356,14 @@ def create_bot():
         
         return jsonify({"status": "success", "message": "Vortex Strategy Activated"})
     except Exception as e:
-        logging.error(f"Create Bot Error: {e}")
-        return jsonify({"status": "error", "message": str(e)}), 500
+        logging.error(f"Create Bot Error: {e}\n{traceback.format_exc()}")
+        return jsonify({"status": "error", "message": str(e)}), 200 # Returning 200 with status error so UI doesn't crash on 500
 
 @app.route('/api/start_strategy', methods=['POST'])
 @login_required
 def start_strategy():
     try:
-        data = request.get_json()
+        data = request.get_json(silent=True) or {}
         symbol = data.get('symbol')
         if not symbol or symbol == '---':
             return jsonify({"status": "error", "message": "No valid symbol selected."}), 400
@@ -329,11 +381,18 @@ def start_strategy():
                  engine.save_state()
 
         # Fetch Price
-        ticker = exchange.fetch_ticker(symbol.replace('-', '/'))
-        price = ticker['last']
+        try:
+            ticker = exchange.fetch_ticker(symbol.replace('-', '/'))
+            price = ticker['last']
+        except Exception as e:
+            return jsonify({"status": "error", "message": f"Could not fetch price for {symbol}"}), 400
 
         # 2. Initial state setup
-        amount_usd = float(data.get('amount', 100.0))
+        try:
+            amount_usd = float(data.get('amount') or 100.0)
+        except (ValueError, TypeError):
+            amount_usd = 100.0
+            
         initial_amount = amount_usd / price
         engine.pos_manager.open_trade(symbol, price, initial_amount)
         
@@ -345,7 +404,7 @@ def start_strategy():
             for k, v in data['dca_config'].items():
                 pos.config[k] = v
                 
-        pos.take_profit_price = engine.dca_engine.calculate_tp_price(pos.entry_price)
+        pos.take_profit_price = engine.dca_engine.calculate_tp_price(pos)
         engine.profit_engine.log_trade(symbol, "BUY", price, initial_amount)
         
         # 3. Save state immediately
@@ -353,8 +412,8 @@ def start_strategy():
         
         return jsonify({"status": "success", "message": "Vortex Strategy Activated"})
     except Exception as e:
-        logging.error(f"Start Strategy Error: {e}")
-        return jsonify({"status": "error", "message": str(e)}), 500
+        logging.error(f"Start Strategy Error: {e}\n{traceback.format_exc()}")
+        return jsonify({"status": "error", "message": str(e)}), 200
 
 @app.route('/api/cleanup_bots', methods=['POST'])
 @login_required

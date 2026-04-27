@@ -4,12 +4,26 @@ import time
 import logging
 import threading
 import shutil
+import traceback
 from datetime import datetime
 from typing import Dict, List, Optional
 
 # --- Configuration & Logging ---
 if not os.path.exists('logs'):
     os.makedirs('logs')
+
+DEFAULT_VORTEX_CONFIG = {
+    "base_order": 20.0,
+    "safety_order": 40.0,
+    "max_safety_orders": 5,
+    "take_profit": 1.5,
+    "deviation": 2.0,
+    "price_deviation": 2.0, # alias for backward compatibility
+    "volume_scale": 1.2,
+    "step_scale": 1.1,
+    "profit_currency": "quote",
+    "mode": "One-time"
+}
 
 # --- Position Object ---
 class Position:
@@ -22,6 +36,7 @@ class Position:
         self.active = False
         self.take_profit_price = 0.0
         self.start_time = None
+        self.config = DEFAULT_VORTEX_CONFIG.copy()
 
     def reset(self):
         self.entry_price = 0.0
@@ -31,6 +46,7 @@ class Position:
         self.active = False
         self.take_profit_price = 0.0
         self.start_time = None
+        # Intentionally not resetting config so user preferences persist
 
     def is_valid(self):
         if not self.active:
@@ -46,7 +62,8 @@ class Position:
             "dca_count": self.dca_count,
             "active": self.active,
             "take_profit_price": self.take_profit_price,
-            "start_time": self.start_time
+            "start_time": self.start_time,
+            "config": self.config
         }
 
     @classmethod
@@ -59,6 +76,14 @@ class Position:
         pos.active = data.get('active', False)
         pos.take_profit_price = data.get('take_profit_price', 0.0)
         pos.start_time = data.get('start_time')
+        
+        # Load config and auto-fill defaults if missing
+        pos_config = data.get('config', {})
+        for k, v in DEFAULT_VORTEX_CONFIG.items():
+            if k not in pos_config:
+                pos_config[k] = v
+        pos.config = pos_config
+        
         return pos
 
 # --- Position Manager ---
@@ -173,23 +198,33 @@ class ProfitEngine:
 
 # --- DCA Engine ---
 class DCAEngine:
-    def __init__(self, dca_levels: List[float], take_profit_pct: float, max_dca: int = 5):
-        self.dca_levels = dca_levels
-        self.take_profit_pct = take_profit_pct
-        self.max_dca = max_dca
+    def __init__(self):
+        pass
 
-    def calculate_tp_price(self, entry_price: float) -> float:
-        return entry_price * (1 + self.take_profit_pct / 100)
+    def calculate_tp_price(self, pos: Position) -> float:
+        tp_pct = pos.config.get("take_profit", 1.5)
+        return pos.entry_price * (1 + tp_pct / 100)
+
+    def get_next_dca_level(self, pos: Position) -> float:
+        """Calculate the required drop percentage for the next DCA."""
+        dev = pos.config.get("deviation", 2.0)
+        step_scale = pos.config.get("step_scale", 1.1)
+        
+        total_drop = 0.0
+        current_step = dev
+        for i in range(pos.dca_count + 1):
+            total_drop += current_step
+            current_step *= step_scale
+            
+        return -total_drop
 
     def should_dca(self, pos: Position, current_price: float) -> bool:
-        if not pos.active or pos.dca_count >= self.max_dca or pos.entry_price <= 0:
+        max_dca = pos.config.get("max_safety_orders", 5)
+        if not pos.active or pos.dca_count >= max_dca or pos.entry_price <= 0:
             return False
         
-        # Check if current drop matches next DCA level
         drop_pct = ((current_price - pos.entry_price) / pos.entry_price) * 100
-        # If we exhausted levels, cap it
-        next_level_idx = min(pos.dca_count, len(self.dca_levels) - 1)
-        next_level = self.dca_levels[next_level_idx]
+        next_level = self.get_next_dca_level(pos)
         
         return drop_pct <= next_level
 
@@ -198,13 +233,22 @@ class DCAEngine:
             return False
         return current_price >= pos.take_profit_price
 
+    def get_dca_amount(self, pos: Position, current_price: float) -> float:
+        """Calculate the amount in base currency for the next DCA."""
+        safety_order_usd = pos.config.get("safety_order", 40.0)
+        vol_scale = pos.config.get("volume_scale", 1.2)
+        
+        # Calculate scaled USD amount
+        target_usd = safety_order_usd * (vol_scale ** pos.dca_count)
+        return target_usd / current_price
+
 # --- Trading Engine (Orchestrator) ---
 class TradingEngine:
     def __init__(self, config_path: str = "bot_state.json"):
         self.config_path = config_path
         self.pos_manager = PositionManager()
         self.profit_engine = ProfitEngine()
-        self.dca_engine = DCAEngine(dca_levels=[-2, -4, -6, -8, -10], take_profit_pct=1.5, max_dca=5)
+        self.dca_engine = DCAEngine()
         self.max_positions = 10
         self.last_save_time = None
         self.state_lock = threading.RLock()
@@ -229,9 +273,6 @@ class TradingEngine:
                 "positions": {s: p.to_dict() for s, p in self.pos_manager.positions.items() if p.active},
                 "profit": self.profit_engine.to_dict(),
                 "config": {
-                    "dca_levels": self.dca_engine.dca_levels,
-                    "take_profit_pct": self.dca_engine.take_profit_pct,
-                    "max_dca": self.dca_engine.max_dca,
                     "max_positions": self.max_positions
                 }
             }
@@ -265,16 +306,13 @@ class TradingEngine:
                     
                     # Load Config
                     config = state.get("config", {})
-                    self.dca_engine.dca_levels = config.get("dca_levels", self.dca_engine.dca_levels)
-                    self.dca_engine.take_profit_pct = config.get("take_profit_pct", self.dca_engine.take_profit_pct)
-                    self.dca_engine.max_dca = config.get("max_dca", self.dca_engine.max_dca)
                     self.max_positions = config.get("max_positions", self.max_positions)
                     
                     # Strict Startup Cleanup
                     self.cleanup_ghost_bots(save=True)
                     logging.info(f"State loaded from {self.config_path}")
                 except Exception as e:
-                    logging.error(f"Failed to load state (possible corruption): {e}. Initializing empty state.")
+                    logging.error(f"Failed to load state (possible corruption): {e}\n{traceback.format_exc()}. Initializing empty state.")
                     self.pos_manager.positions.clear()
                     # Will save a fresh state on next save
             else:
@@ -343,9 +381,9 @@ class TradingEngine:
 
             # b. DCA Check
             if self.dca_engine.should_dca(pos, price):
-                dca_amount = pos.amount * 1.0 # Simple 1:1 for now
+                dca_amount = self.dca_engine.get_dca_amount(pos, price)
                 self.pos_manager.update_after_dca(symbol, price, dca_amount)
-                pos.take_profit_price = self.dca_engine.calculate_tp_price(pos.entry_price)
+                pos.take_profit_price = self.dca_engine.calculate_tp_price(pos)
                 self.profit_engine.log_trade(symbol, "DCA_BUY", price, dca_amount)
                 continue
 
