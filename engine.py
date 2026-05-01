@@ -303,6 +303,10 @@ class TradingEngine:
                     self.pos_manager.positions.clear()
                     for symbol, pos_data in state.get("positions", {}).items():
                         pos = Position.from_dict(pos_data)
+                        
+                        if not hasattr(pos, "config") or not pos.config:
+                            pos.config = DEFAULT_VORTEX_CONFIG.copy()
+                            
                         if pos.active and pos.is_valid():
                             self.pos_manager.positions[symbol] = pos
                         else:
