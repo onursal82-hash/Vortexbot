@@ -15,14 +15,14 @@ if not os.path.exists('logs'):
 DEFAULT_VORTEX_CONFIG = {
     "base_order": 20.0,
     "safety_order": 40.0,
-    "max_safety_orders": 5,
+    "max_safety_orders": 20,
     "take_profit": 1.5,
     "deviation": 2.0,
     "price_deviation": 2.0, # alias for backward compatibility
-    "volume_scale": 1.2,
-    "step_scale": 1.1,
+    "volume_scale": 1.05,
+    "step_scale": 1.0,
     "profit_currency": "quote",
-    "mode": "One-time"
+    "mode": "Loop"
 }
 
 # --- Position Object ---
@@ -82,6 +82,13 @@ class Position:
         for k, v in DEFAULT_VORTEX_CONFIG.items():
             if k not in pos_config:
                 pos_config[k] = v
+        
+        # Explicit migration step for legacy bots running old config defaults
+        if pos_config.get("mode") == "One-time" and pos_config.get("max_safety_orders") == 5:
+            # Re-apply the full modern defaults
+            for k, v in DEFAULT_VORTEX_CONFIG.items():
+                pos_config[k] = v
+                
         pos.config = pos_config
         
         return pos
