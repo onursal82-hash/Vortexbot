@@ -86,7 +86,8 @@ async function loadDashboardData() {
         window.lastBots = data.bots || [];
         
         // 1. Update PnL (Vertical Pill)
-        const netPnl = parseFloat(data.financials.net_pnl || 0);
+        const financials = data.financials || {};
+        const netPnl = parseFloat(financials.net_pnl || 0);
         const pnlEl = document.getElementById('dashTotalPnl');
         if (pnlEl) {
             const sign = netPnl >= 0 ? '+' : '';
@@ -98,16 +99,14 @@ async function loadDashboardData() {
         updateIntegratedCoins(data.ticker || {});
 
         // 3. Update Global Stats
-        const financials = data.financials || {};
-        
         const realizedEl = document.getElementById('realizedProfit');
         if (realizedEl) {
-            realizedEl.innerText = '$' + (financials.total_realized_profit || 0).toFixed(2);
+            realizedEl.innerText = '$' + Number(financials.total_realized_profit || 0).toFixed(2);
         }
         
         const winRateEl = document.getElementById('winRate');
         if (winRateEl) {
-            winRateEl.innerText = (financials.win_rate || 0).toFixed(1) + '%';
+            winRateEl.innerText = Number(financials.win_rate || 0).toFixed(1) + '%';
         }
         
         const totalTradesEl = document.getElementById('totalTrades');
@@ -167,7 +166,7 @@ function updateActiveBotsList(bots) {
         const pnl = parseFloat(bot.pnl || 0);
         const pnlClass = pnl >= 0 ? 'text-cyan' : 'text-pink';
         const sign = pnl >= 0 ? '+' : '';
-        const pnlAmt = (bot.investment * (pnl / 100)).toFixed(2);
+        const pnlAmt = (Number(bot.investment || 0) * (pnl / 100)).toFixed(2);
         
         let uptime = '0m';
         if(bot.start_time) {
@@ -177,20 +176,20 @@ function updateActiveBotsList(bots) {
             uptime = hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`;
         }
 
-        const so_filled = bot.safety_orders_filled ?? 0;
-        const so_max = (bot.dca_config && bot.dca_config.max_safety_orders) || bot.max_safety_orders || 15;
+        const so_filled = bot.dca_count ?? bot.safety_orders_filled ?? 0;
+        const so_max = (bot.config && bot.config.max_safety_orders) || 20;
 
         // Add onclick to view details
         // Note: stopPropagation on buttons to prevent triggering modal when clicking buttons
         return `
         <div class="op-card" onclick="window.viewBotDetails('${bot.symbol}')">
             <div class="op-header">
-                <span style="color:#fff;">${bot.symbol}</span>
-                <span class="${pnlClass}">${sign}${pnl}% ($${pnlAmt})</span>
+                <span style="color:#fff;">${bot.symbol || ''}</span>
+                <span class="${pnlClass}">${sign}${pnl.toFixed(2)}% ($${pnlAmt})</span>
             </div>
             <div class="op-details">
-                <div>Price: <span class="font-mono text-white">$${parseFloat(bot.current_price).toLocaleString()}</span></div>
-                <div>Entry: <span class="font-mono text-white">$${parseFloat(bot.average_entry || 0).toLocaleString()}</span></div>
+                <div>Price: <span class="font-mono text-white">$${Number(bot.current_price || 0).toLocaleString()}</span></div>
+                <div>Entry: <span class="font-mono text-white">$${Number(bot.average_entry || 0).toLocaleString()}</span></div>
                 <div>Uptime: <span class="font-mono text-white">${uptime}</span></div>
                 <div>SO: <span style="color:#a084e8; font-weight:bold;">${so_filled}/${so_max}</span></div>
             </div>
@@ -262,15 +261,11 @@ function buildBotPayload(symbol) {
             max_safety_orders: parseInt(getVal('fMaxSafety')),
             volume_scale: parseFloat(getVal('fVolScale')),
             step_scale: parseFloat(getVal('fStepScale')),
-            price_deviation: parseFloat(getVal('fDev')),
+            deviation: parseFloat(getVal('fDev')),
+            price_deviation: parseFloat(getVal('fDev')), // legacy fallback
             take_profit: parseFloat(getVal('fTP')),
-            tp_type: getVal('fTPType'),
-            profit_currency: getVal('fProfitCurrency'), // New
-            stop_action: getVal('fStopAction'),
-            stop_loss_enabled: true,
-            stop_loss: 5.0,
-            continuous_mode: getVal('fContinuousMode') === 'true', // New
-            entry_type: getVal('fEntryType') // New
+            profit_currency: getVal('fProfitCurrency'),
+            mode: getVal('fContinuousMode') === 'true' ? 'Loop' : 'One-time'
         }
     };
 }
@@ -357,38 +352,41 @@ window.stopBot = async function(symbol, action) {
 }
 
 // --- Bot Details Modal ---
-window.viewBotDetails = function(symbol) {
-    // Use cached data first
-    const bots = window.lastBots || [];
-    const bot = bots.find(b => b.symbol === symbol);
-    
-    if (!bot) return;
-
-    const modal = document.getElementById('botDetailsModal');
-    const title = document.getElementById('modalBotSymbol');
-    const content = document.getElementById('modalBotContent');
-    
-    title.innerText = `${bot.symbol} DETAILS`;
-    
-    const config = bot.dca_config || {};
-    
-    content.innerHTML = `
-        <div class="detail-row"><span class="detail-label">Status</span> <span class="detail-val" style="color:${bot.status === 'active' ? '#03DAC6' : 'orange'}">${bot.status}</span></div>
-        <div class="detail-row"><span class="detail-label">PNL</span> <span class="detail-val">${bot.pnl}%</span></div>
-        <div class="detail-row"><span class="detail-label">Investment</span> <span class="detail-val">$${bot.investment}</span></div>
-        <br>
-        <div class="detail-row"><span class="detail-label">Base Order</span> <span class="detail-val">$${config.base_order}</span></div>
-        <div class="detail-row"><span class="detail-label">Safety Order</span> <span class="detail-val">$${config.safety_order}</span></div>
-        <div class="detail-row"><span class="detail-label">Max Safety</span> <span class="detail-val">${config.max_safety_orders}</span></div>
-        <div class="detail-row"><span class="detail-label">Take Profit</span> <span class="detail-val">${config.take_profit}%</span></div>
-        <div class="detail-row"><span class="detail-label">Deviation</span> <span class="detail-val">${config.price_deviation}%</span></div>
-        <div class="detail-row"><span class="detail-label">Vol Scale</span> <span class="detail-val">${config.volume_scale}</span></div>
-        <div class="detail-row"><span class="detail-label">Step Scale</span> <span class="detail-val">${config.step_scale}</span></div>
-        <div class="detail-row"><span class="detail-label">Profit Currency</span> <span class="detail-val">${config.profit_currency || 'quote'}</span></div>
-        <div class="detail-row"><span class="detail-label">Mode</span> <span class="detail-val">${config.continuous_mode ? 'Loop' : 'One-time'}</span></div>
-    `;
-    
-    modal.classList.remove('hidden');
+window.viewBotDetails = async function(symbol) {
+    try {
+        const res = await fetch(`${API_BASE}/api/bot_details/${symbol}`);
+        if (!res.ok) throw new Error("Failed to fetch bot details");
+        const bot = await res.json();
+        
+        const modal = document.getElementById('botDetailsModal');
+        const title = document.getElementById('modalBotSymbol');
+        const content = document.getElementById('modalBotContent');
+        
+        title.innerText = `${bot.symbol} DETAILS`;
+        
+        const config = bot.config || {};
+        
+        content.innerHTML = `
+            <div class="detail-row"><span class="detail-label">Status</span> <span class="detail-val" style="color:${bot.status === 'Active' ? '#03DAC6' : 'orange'}">${bot.status}</span></div>
+            <div class="detail-row"><span class="detail-label">PNL</span> <span class="detail-val">${bot.pnl}%</span></div>
+            <div class="detail-row"><span class="detail-label">Investment</span> <span class="detail-val">$${bot.investment}</span></div>
+            <br>
+            <div class="detail-row"><span class="detail-label">Base Order</span> <span class="detail-val">${config.base_order}</span></div>
+            <div class="detail-row"><span class="detail-label">Safety Order</span> <span class="detail-val">${config.safety_order}</span></div>
+            <div class="detail-row"><span class="detail-label">Max Safety</span> <span class="detail-val">${config.max_safety_orders}</span></div>
+            <div class="detail-row"><span class="detail-label">Take Profit</span> <span class="detail-val">${config.take_profit}%</span></div>
+            <div class="detail-row"><span class="detail-label">Deviation</span> <span class="detail-val">${config.deviation || config.price_deviation}%</span></div>
+            <div class="detail-row"><span class="detail-label">Vol Scale</span> <span class="detail-val">${config.volume_scale}</span></div>
+            <div class="detail-row"><span class="detail-label">Step Scale</span> <span class="detail-val">${config.step_scale}</span></div>
+            <div class="detail-row"><span class="detail-label">Profit Currency</span> <span class="detail-val">${config.profit_currency}</span></div>
+            <div class="detail-row"><span class="detail-label">Mode</span> <span class="detail-val">${config.mode}</span></div>
+        `;
+        
+        modal.classList.remove('hidden');
+    } catch (e) {
+        console.error(e);
+        showToast('Could not load bot details', 'error');
+    }
 }
 
 window.loadHistory = async function() {
@@ -396,15 +394,19 @@ window.loadHistory = async function() {
         const res = await fetch(`${API_BASE}/api/history?t=` + Date.now());
         if(!res.ok) throw new Error("History fetch failed");
         const history = await res.json();
-        const table = history.map(h => 
-            `<tr>
-                <td>${h.timestamp.replace('T', ' ').split('.')[0]}</td>
-                <td>${h.symbol}</td>
-                <td>${h.event}</td>
-                <td style="color:${h.pnl_percent >= 0 ? 'var(--accent-cyan)' : 'var(--accent-pink)'}">${h.pnl_percent.toFixed(2)}%</td>
-                <td style="color:${h.pnl_usd >= 0 ? 'var(--accent-cyan)' : 'var(--accent-pink)'}">$${h.pnl_usd.toFixed(2)}</td>
-            </tr>`
-        ).join("");
+        if (!Array.isArray(history)) throw new Error("History not an array");
+        const table = history.map(h => {
+            const timestamp = h.timestamp ? h.timestamp.replace('T', ' ').split('.')[0] : '';
+            const pnl_percent = Number(h.pnl_percent || 0);
+            const pnl_usd = Number(h.pnl_usd || 0);
+            return `<tr>
+                <td>${timestamp}</td>
+                <td>${h.symbol || ''}</td>
+                <td>${h.type || h.event || ''}</td>
+                <td style="color:${pnl_percent >= 0 ? 'var(--accent-cyan)' : 'var(--accent-pink)'}">${pnl_percent.toFixed(2)}%</td>
+                <td style="color:${pnl_usd >= 0 ? 'var(--accent-cyan)' : 'var(--accent-pink)'}">$${pnl_usd.toFixed(2)}</td>
+            </tr>`;
+        }).join("");
         document.getElementById("history-body").innerHTML = table;
         document.getElementById("historyModal").classList.add("open");
         document.getElementById("historyModal").style.display = 'flex'; // Ensure flex for centering

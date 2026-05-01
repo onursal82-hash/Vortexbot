@@ -490,25 +490,27 @@ def reset_all():
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
-@app.route('/api/bot_details/<bot_id>')
+@app.route('/api/bot_details/<symbol>')
 @login_required
-def bot_details(bot_id):
-    # bot_id is the symbol
-    bot_id = bot_id.upper().replace("/", "-").strip()
-    pos = engine.pos_manager.get_position(bot_id)
-    if not pos.active:
+def bot_details(symbol):
+    symbol = symbol.upper().replace("/", "-").strip()
+    pos = engine.pos_manager.positions.get(symbol)
+    
+    if not pos or not pos.active:
         return jsonify({"status": "error", "message": "Bot not found"}), 404
         
-    # Return exact configuration format
-    bot_data = {
-        "symbol": pos.symbol,
-        "status": "Active" if pos.active else "Inactive",
-        "pnl": round(((MARKET_CACHE['ticker'].get(bot_id, {}).get('last', 0.0) - pos.entry_price) / pos.entry_price * 100) if pos.entry_price > 0 else 0.0, 2),
-        "investment": round(pos.total_cost, 2),
-        "config": pos.config
-    }
+    calculated_pnl = ((MARKET_CACHE['ticker'].get(symbol, {}).get('last', 0.0) - pos.entry_price) / pos.entry_price * 100) if pos.entry_price > 0 else 0.0
     
-    return jsonify(bot_data)
+    print("BOT DETAILS:", getattr(pos, "config", {}))
+
+    # Return FULL response
+    return jsonify({
+        "symbol": symbol,
+        "status": "Active" if pos.active else "Stopped",
+        "pnl": calculated_pnl,
+        "investment": pos.total_cost,
+        "config": pos.config
+    })
 
 if __name__ == '__main__':
     print('--- VORTEX PLATFORM SERVER STARTING ON PORT 5300 ---')
