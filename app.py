@@ -226,7 +226,8 @@ def dashboard_data():
                 "unrealized_pnl": round(unrealized_pnl, 2),
                 "dca_count": pos.dca_count,
                 "uptime": uptime,
-                "start_time": pos.start_time
+                "start_time": pos.start_time,
+                "config": pos.config
             })
     
     # Global Stats
@@ -496,32 +497,18 @@ def bot_details(bot_id):
     bot_id = bot_id.upper().replace("/", "-").strip()
     pos = engine.pos_manager.get_position(bot_id)
     if not pos.active:
-        return "Bot not found", 404
+        return jsonify({"status": "error", "message": "Bot not found"}), 404
         
-    # Return actual configuration values from position config
+    # Return exact configuration format
     bot_data = {
         "symbol": pos.symbol,
-        "status": "running" if pos.active else "stopped",
-        "entry_price": pos.entry_price,
-        "current_price": MARKET_CACHE['ticker'].get(bot_id, {}).get('last', 0.0),
-        "investment": pos.total_cost,
-        "pnl": ((MARKET_CACHE['ticker'].get(bot_id, {}).get('last', 0.0) - pos.entry_price) / pos.entry_price * 100) if pos.entry_price > 0 else 0.0,
-        "dca_config": pos.config
+        "status": "Active" if pos.active else "Inactive",
+        "pnl": round(((MARKET_CACHE['ticker'].get(bot_id, {}).get('last', 0.0) - pos.entry_price) / pos.entry_price * 100) if pos.entry_price > 0 else 0.0, 2),
+        "investment": round(pos.total_cost, 2),
+        "config": pos.config
     }
     
-    # Filter logs for this bot
-    logs = [l for l in engine.profit_engine.trade_log if l['symbol'] == bot_id]
-    # Map logs to template expectations
-    mapped_logs = []
-    for l in logs:
-        mapped_logs.append({
-            "time": l['timestamp'].split('T')[1].split('.')[0],
-            "type": l['type'],
-            "price": l['price'],
-            "pnl": f"{l['profit']:.2f}" if 'profit' in l else "0.00"
-        })
-    
-    return render_template('bot_details.html', bot=bot_data, logs=mapped_logs)
+    return jsonify(bot_data)
 
 if __name__ == '__main__':
     print('--- VORTEX PLATFORM SERVER STARTING ON PORT 5300 ---')
