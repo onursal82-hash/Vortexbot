@@ -386,8 +386,18 @@ class TradingEngine:
                 profit = (price - pos.entry_price) * pos.amount
                 self.profit_engine.log_trade(symbol, "TAKE_PROFIT", price, pos.amount, profit)
                 self.pos_manager.close_trade(symbol)
-                # After closing, we don't immediately open a new trade for the same symbol 
-                # Let's keep it simple: the next tick will see it as inactive.
+                
+                if pos.config.get("mode") == "Loop":
+                    print(f"{symbol} restarting due to Loop mode")
+                    logging.info(f"{symbol} restarting due to Loop mode")
+                    
+                    if not pos.active:
+                        amount_usd = pos.config.get("base_order", 20.0)
+                        initial_amount = amount_usd / price
+                        self.pos_manager.open_trade(symbol, price, initial_amount)
+                        pos.take_profit_price = self.dca_engine.calculate_tp_price(pos)
+                        self.profit_engine.log_trade(symbol, "BUY", price, initial_amount)
+                
                 continue
 
             # b. DCA Check

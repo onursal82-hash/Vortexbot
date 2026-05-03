@@ -1,36 +1,13 @@
 {
-    "positions": {
-        "BTC-USDT": {
-            "symbol": "BTC-USDT",
-            "entry_price": 76769.1,
-            "amount": 0.001302607429291212,
-            "total_cost": 100.0,
-            "dca_count": 0,
-            "active": true,
-            "take_profit_price": 77920.6365,
-            "start_time": "2026-04-27T19:12:47.634231",
-            "config": {
-                "base_order": 20.0,
-                "safety_order": 40.0,
-                "max_safety_orders": 5,
-                "take_profit": 1.5,
-                "deviation": 2.0,
-                "price_deviation": 2.0,
-                "volume_scale": 1.2,
-                "step_scale": 1.1,
-                "profit_currency": "quote",
-                "mode": "One-time"
-            }
-        }
-    },
+    "positions": {},
     "profit": {
         "stats": {
-            "realized_profit": 0.0,
-            "unrealized_profit": 0.7078,
-            "total_trades": 0,
-            "closed_trades": 0,
-            "open_positions": 1,
-            "win_rate": 0.0
+            "realized_profit": 1.8856545146419472,
+            "unrealized_profit": 0.0,
+            "total_trades": 1,
+            "closed_trades": 1,
+            "open_positions": 0,
+            "win_rate": 100.0
         },
         "trade_log": [
             {
@@ -48,6 +25,14 @@
                 "price": 76769.1,
                 "amount": 0.001302607429291212,
                 "profit": 0.0
+            },
+            {
+                "timestamp": "2026-05-01T16:44:44.679064",
+                "symbol": "BTC-USDT",
+                "type": "TAKE_PROFIT",
+                "price": 78216.7,
+                "amount": 0.001302607429291212,
+                "profit": 1.8856545146419472
             }
         ]
     },
